@@ -1,0 +1,113 @@
+{
+  "clusters": [
+    {
+      "id": "7",
+      "title": "Fictional historical pattern",
+      "shortTitle": "Fictional pattern",
+      "subtitle": "Fictional historical pattern",
+      "match": 91,
+      "context": "FICTIONAL TEST: recurring label events."
+    },
+    {
+      "id": "8",
+      "title": "Fictional second pattern",
+      "shortTitle": "Second pattern",
+      "subtitle": "Fictional second pattern",
+      "match": 85,
+      "context": "FICTIONAL TEST: laboratory observations."
+    }
+  ],
+  "records": [
+    {
+      "site": "Fictional Site",
+      "division": "DPD",
+      "department": "Laboratory",
+      "year": "2026",
+      "criticality": "Major",
+      "status": "Closed",
+      "opened": "2026-01-03",
+      "createdLabel": "2026-01-03",
+      "drType": "Product Deviation",
+      "building": "Not provided",
+      "room": "Not provided",
+      "suite": "Not provided",
+      "productionArea": "Not provided",
+      "productionLine": "Not provided",
+      "sourceField": "Detailed description",
+      "sourceNarrative": "FICTIONAL TEST: Lot TEST-A, 20 mL on 3 January 2026. Five cartons were held.",
+      "matchSignals": [
+        "Historical cluster similarity: 0.91."
+      ],
+      "volume": 1,
+      "daysOpen": 5,
+      "monthCounts": {
+        "2026-01": 1
+      },
+      "id": "00042",
+      "clusterId": "7",
+      "shortDescription": "Fictional label event"
+    },
+    {
+      "site": "Second Fictional Site",
+      "division": "DPD",
+      "department": "Laboratory",
+      "year": "2026",
+      "criticality": "Major",
+      "status": "Closed",
+      "opened": "2026-01-03",
+      "createdLabel": "2026-01-03",
+      "drType": "Product Deviation",
+      "building": "Not provided",
+      "room": "Not provided",
+      "suite": "Not provided",
+      "productionArea": "Not provided",
+      "productionLine": "Not provided",
+      "sourceField": "Detailed description",
+      "sourceNarrative": "FICTIONAL TEST: Lot TEST-A, 20 mL on 3 January 2026. Five cartons were held.",
+      "matchSignals": [
+        "Historical cluster similarity: 0.91."
+      ],
+      "volume": 1,
+      "daysOpen": 5,
+      "monthCounts": {
+        "2026-01": 1
+      },
+      "id": "00043",
+      "clusterId": "7",
+      "shortDescription": "Fictional second label event"
+    },
+    {
+      "site": "Fictional Site",
+      "division": "DPD",
+      "department": "Laboratory",
+      "year": "2026",
+      "criticality": "Major",
+      "status": "Closed",
+      "opened": "2026-01-03",
+      "createdLabel": "2026-01-03",
+      "drType": "Product Deviation",
+      "building": "Not provided",
+      "room": "Not provided",
+      "suite": "Not provided",
+      "productionArea": "Not provided",
+      "productionLine": "Not provided",
+      "sourceField": "Detailed description",
+      "sourceNarrative": "FICTIONAL TEST: Lot TEST-A, 20 mL on 3 January 2026. Five cartons were held.",
+      "matchSignals": [
+        "Historical cluster similarity: 0.91."
+      ],
+      "volume": 1,
+      "daysOpen": 5,
+      "monthCounts": {
+        "2026-01": 1
+      },
+      "id": "00044",
+      "clusterId": "8",
+      "shortDescription": "Fictional analytical event"
+    }
+  ],
+  "months": [
+    "2026-01"
+  ],
+  "refreshedAt": "2026-01-08"
+}

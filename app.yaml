@@ -1,0 +1,6 @@
+command: ['npm', 'run', 'start']
+env:
+  - name: FRONTEND_HOST
+    value: '0.0.0.0'
+  # Configure MAP_API_TARGET with the deployed MAP backend URL.
+  # Supply app-to-app authentication through server-side secret/environment configuration.

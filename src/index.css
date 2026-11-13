@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Arimo", Arial, ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #111118;
+  --color-surface: #fafafa;
+
+  /* Colours */
+  --color-line: #e8e8ec;
+  --color-line-strong: #d0d0d8;
+  --color-suite-ink: #1a1f26;
+  --color-suite-ink-deep: #1a1d23;
+  --color-suite-muted: #636e7d;
+  --color-suite-slate: #4d5e75;
+  --color-suite-blue: #31577f;
+  --color-brand: #e71316;
+  --color-brand-strong: #c80f12;
+  --color-brand-wash: #fff0f0;
+  --color-suite-line: #e0e5eb;
+  --color-suite-line-soft: #e8ebef;
+  --color-suite-line-strong: #d9dee5;
+  --color-suite-line-field: #cdd4dd;
+  --color-suite-surface: #f4f6f9;
+  --color-suite-hover: #f7fafc;
+  --color-suite-info-wash: #edf3fa;
+  --color-warn-ink: #9e610d;
+  --color-warn-wash: #fcf2d6;
+}
+
+@layer base {
+  html {
+    background: #f4f6f9;
+  }
+
+  body {
+    min-width: 320px;
+  }
+
+  ::selection {
+    background: #f7c8c9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
