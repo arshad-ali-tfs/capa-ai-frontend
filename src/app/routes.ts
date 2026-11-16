@@ -11,6 +11,8 @@ export function parseRoute(pathname: string): Route {
   if (first !== "map") return { type: "not-found" }
 
   if (parts.length === 1) return { type: "overview" }
+  if (second === "records" && clusterId && parts.length === 3)
+    return { type: "record", recordId: clusterId }
   if (second !== "clusters" || !clusterId) return { type: "not-found" }
   if (parts.length === 3) return { type: "cluster", clusterId }
   if (section === "evidence" && recordId && parts.length === 5) {

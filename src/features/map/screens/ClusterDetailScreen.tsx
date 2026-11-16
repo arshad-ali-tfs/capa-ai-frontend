@@ -4,31 +4,30 @@ import {
   Badge,
   BarList,
   DisclosurePanel,
-  EmptyState,
   FilterPanel,
   MetricCard,
   PageHeading,
   Panel,
-  TableButton,
 } from "@/shared/components"
-import {
-  type Cluster,
-  type DetailFilterKey,
-  type Filters,
-} from "@/features/map/types"
+import type { Cluster, Filters, MapFilterKey } from "../types"
 import {
   filterRecords,
+  formatDate,
   getFilterOptions,
+  isMajorCritical,
   medianDaysOpen,
   monthTotals,
+  recordPath,
   recordsForCluster,
   sumVolume,
-} from "@/features/map/utils"
-import { detailFields } from "@/features/map/constants"
-import { GuidedWorkspace } from "@/features/map/components/GuidedWorkspace"
-import { PatternNotice } from "@/features/map/components/PatternNotice"
-import { useMapData } from "@/features/map/MapDataProvider"
-
+} from "../utils"
+import { detailFields, overviewFields } from "../constants"
+import { GuidedWorkspace } from "../components/GuidedWorkspace"
+import { AnalysisStatus } from "../components/AnalysisStatus"
+import { CapaContext } from "../components/CapaContext"
+import { RecordList } from "../components/RecordList"
+import { HistoricalContext } from "../components/HistoricalContext"
+import { useMapData } from "../MapDataProvider"
 export function ClusterDetailScreen({
   cluster,
   filters,
@@ -36,162 +35,115 @@ export function ClusterDetailScreen({
   onClear,
 }: {
   cluster: Cluster
-  filters: Filters<DetailFilterKey>
-  onFilterChange: (key: DetailFilterKey, value: string) => void
+  filters: Filters<MapFilterKey>
+  onFilterChange: (key: MapFilterKey, value: string) => void
   onClear: () => void
 }) {
   const { records, months, refreshedAt } = useMapData()
-  const allClusterRecords = recordsForCluster(records, cluster.id)
-  const visibleRecords = filterRecords(allClusterRecords, filters)
-  const firstRecord = visibleRecords[0]
-  const majorCritical = visibleRecords.filter((item) =>
-    ["Major", "Critical"].includes(item.criticality),
-  ).length
-
+  const all = recordsForCluster(records, cluster.id),
+    visible = filterRecords(all, filters),
+    first = visible[0]
+  const fields = [
+    ...detailFields,
+    ...overviewFields.filter(
+      (field) =>
+        !detailFields.some((d) => d.key === field.key) &&
+        filters[field.key] !== "All",
+    ),
+  ]
+  const warnings = visible.filter((r) => r.warnings.length)
   return (
     <>
       <PageHeading
-        title={`Cluster detail • ${cluster.id}`}
+        title={`Cluster detail · ${cluster.id}`}
         subtitle={cluster.subtitle}
-        status={`Refreshed ${refreshedAt}`}
+        status={`Analysis completed ${formatDate(refreshedAt, true)}`}
         breadcrumbs={[
-          { label: "Global cluster overview", href: "/map" },
+          { label: "Cluster overview", href: "/map" },
           { label: cluster.id },
         ]}
       />
+      <AnalysisStatus />
       <GuidedWorkspace step={2} clusterId={cluster.id}>
-        <PatternNotice />
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_300px]">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label="Deviations in cluster"
-            value={sumVolume(visibleRecords)}
-            help="Total record volume"
+            value={sumVolume(visible)}
+            help="Within the current filters"
           />
           <MetricCard
             label="Major / Critical"
-            value={majorCritical}
-            help="Requires human assessment"
+            value={sumVolume(visible.filter(isMajorCritical))}
+            help="Source criticality classification"
           />
           <MetricCard
             label="Median days open"
-            value={medianDaysOpen(visibleRecords)}
-            help="Median"
+            value={medianDaysOpen(visible)}
+            help="From source opened/closed dates"
           />
           <ActionCard
             title="Review records"
             help={
-              firstRecord
+              first
                 ? "Open the first visible deviation"
-                : "No record available"
+                : "No record matches these filters"
             }
-            disabled={!firstRecord}
-            onClick={() =>
-              firstRecord &&
-              navigateTo(
-                `/map/clusters/${cluster.id}/evidence/${firstRecord.id}`,
-              )
-            }
+            disabled={!first}
+            onClick={() => first && navigateTo(recordPath(first))}
           />
         </section>
         <FilterPanel
           filters={filters}
-          fields={detailFields.map((field) => ({
+          fields={fields.map((field) => ({
             ...field,
-            options: getFilterOptions(allClusterRecords, field.key),
+            options: getFilterOptions(all, field.key),
           }))}
           onChange={onFilterChange}
           onClear={onClear}
-          resultLabel={`${visibleRecords.length} records`}
+          primaryCount={4}
+          resultLabel={`${visible.length} ${visible.length === 1 ? "record" : "records"}`}
         />
-        <section className="order-2 grid min-w-0 grid-cols-1 gap-3.5 xl:grid-cols-[.78fr_1fr]">
+        {warnings.length > 0 && (
+          <p
+            className="rounded-lg border border-[#efd99d] bg-warn-wash p-3 text-sm text-warn-ink"
+            role="status"
+          >
+            {warnings.length}{" "}
+            {warnings.length === 1 ? "record needs" : "records need"} review.
+            Warning details are available on each evidence page.
+          </p>
+        )}
+        <section className="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <Panel
+            title="Included deviations"
+            help="Select a row to view source evidence."
+          >
+            <RecordList records={visible} />
+          </Panel>
+          <DisclosurePanel
+            title="Related CAPA context"
+            help="Relationships retained in the same source snapshot."
+          >
+            <CapaContext cluster={cluster} records={visible} />
+          </DisclosurePanel>
+        </section>
+        <section className="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,.78fr)_minmax(0,1fr)]">
           <Panel
             title="Cluster context"
-            help="This grouping is a navigation aid, not a root-cause conclusion."
-            className="min-h-[250px]"
+            help="Historical summary for the full cluster; it does not change with these filters."
           >
-            <p className="max-w-2xl text-[13px] leading-relaxed">
-              {cluster.context}
-            </p>
-            <div className="mt-6">
-              <Badge tone="amber">Analytical summary</Badge>
-            </div>
-            <p className="mt-3 text-xs text-suite-muted">
-              No causal or product-impact conclusion is implied by cluster
-              membership.
+            <Badge tone="amber">Historical analytical summary</Badge>
+            <HistoricalContext text={cluster.context} />
+            <p className="mt-4 text-xs text-suite-muted">
+              Cluster membership does not establish root cause, severity or
+              product impact.
             </p>
           </Panel>
           <DisclosurePanel
             title="Deviation occurrences"
-            help="Optional counts by month."
+            help="Record counts by opened month, within the current filters."
           >
-            <BarList items={monthTotals(visibleRecords, months)} />
-          </DisclosurePanel>
-        </section>
-        <section className="order-1 grid min-w-0 grid-cols-1 gap-3.5 xl:grid-cols-[1.7fr_1fr]">
-          <Panel
-            title="Included deviations"
-            help="Select a row to view source evidence."
-            className="min-h-[270px]"
-          >
-            {visibleRecords.length ? (
-              <div className="overflow-x-auto">
-                <div className="min-w-[760px]">
-                  <div className="grid grid-cols-[1.15fr_.9fr_.85fr_.8fr_2.1fr] gap-2 rounded-md bg-suite-hover p-2 text-[11px] font-bold text-suite-muted">
-                    <span>Record ID</span>
-                    <span>Site</span>
-                    <span>Criticality</span>
-                    <span>Status</span>
-                    <span>Short description</span>
-                  </div>
-                  <div className="mt-1 space-y-0.5">
-                    {visibleRecords.map((record) => (
-                      <TableButton
-                        key={record.id}
-                        onClick={() =>
-                          navigateTo(
-                            `/map/clusters/${cluster.id}/evidence/${record.id}`,
-                          )
-                        }
-                        ariaLabel={`Open evidence review for ${record.id}`}
-                      >
-                        <span className="grid grid-cols-[1.15fr_.9fr_.85fr_.8fr_2.1fr] gap-2 px-2 py-2.5 text-xs text-suite-muted">
-                          <span className="font-bold text-suite-ink">
-                            {record.id}
-                          </span>
-                          <span>{record.site}</span>
-                          <span>{record.criticality}</span>
-                          <span>{record.status}</span>
-                          <span>{record.shortDescription}</span>
-                        </span>
-                      </TableButton>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <EmptyState message="No records match the selected cluster filters." />
-            )}
-          </Panel>
-          <DisclosurePanel
-            title="Related CAPA context"
-            help="Optional historical relationship • verify in the QMS."
-          >
-            {cluster.capa ? (
-              <>
-                <Badge tone="green">{cluster.capa.id}</Badge>
-                <p className="mt-3 text-[13px] leading-relaxed">
-                  {cluster.capa.description}
-                </p>
-                <p className="mt-8 text-xs text-suite-muted">
-                  Status: {cluster.capa.status}
-                </p>
-                <p className="mt-2 text-[11px] font-bold text-warn-ink">
-                  Reference only • CAPA.AI does not write back to the QMS.
-                </p>
-              </>
-            ) : (
-              <EmptyState message="No CAPA relationship is available for this cluster." />
-            )}
+            <BarList items={monthTotals(visible, months)} />
           </DisclosurePanel>
         </section>
       </GuidedWorkspace>

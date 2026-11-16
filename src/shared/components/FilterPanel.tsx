@@ -19,20 +19,40 @@ export function FilterPanel<K extends string>({
   primaryCount?: number
   resultLabel?: string
 }) {
+  const id = useId()
   const renderField = (field: FilterField<K>) => (
     <label key={field.key} className="flex min-w-0 flex-col gap-1 px-2 py-1">
-      <span className="text-[11px] font-bold">{field.label}</span>
+      <span className="text-xs font-bold">{field.label}</span>
       <select
         aria-label={field.label}
         value={filters[field.key]}
+        disabled={!field.options.some((value) => !unavailable(value))}
+        aria-describedby={
+          !field.options.some((value) => !unavailable(value))
+            ? `${id}-${field.key}`
+            : undefined
+        }
         onChange={(event) => onChange(field.key, event.target.value)}
-        className="h-8 w-full rounded-[5px] border border-suite-line bg-white px-2 text-xs text-suite-muted outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+        className="min-h-10 w-full rounded-md border border-suite-line bg-white px-2 text-sm text-suite-muted outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:cursor-not-allowed disabled:bg-suite-hover"
       >
-        <option>All</option>
+        <option value="All">
+          {field.options.some((value) => !unavailable(value))
+            ? "All"
+            : "Not available in source"}
+        </option>
+        {filters[field.key] !== "All" &&
+          !field.options.includes(filters[field.key]) && (
+            <option>{filters[field.key]}</option>
+          )}
         {field.options.map((option) => (
           <option key={option}>{option}</option>
         ))}
       </select>
+      {!field.options.some((value) => !unavailable(value)) && (
+        <span id={`${id}-${field.key}`} className="sr-only">
+          This field has no usable source values in this analysis.
+        </span>
+      )}
     </label>
   )
   const primaryFields = fields.slice(0, primaryCount)
@@ -43,10 +63,10 @@ export function FilterPanel<K extends string>({
     <section className="rounded-xl border border-suite-line bg-white p-3.5">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xs font-bold">Narrow this view</h2>
-        <p className="text-[11px] text-suite-muted">Filters work together</p>
+        <p className="text-xs text-suite-muted">Filters work together</p>
         <div className="flex-1" />
         {resultLabel && (
-          <span className="rounded-full bg-suite-info-wash px-2.5 py-1 text-[11px] font-bold text-suite-blue">
+          <span className="rounded-full bg-suite-info-wash px-2.5 py-1 text-xs font-bold text-suite-blue">
             {resultLabel}
           </span>
         )}
@@ -63,7 +83,7 @@ export function FilterPanel<K extends string>({
       </div>
       {activeFields.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-suite-line-soft pt-2">
-          <span className="mr-1 text-[10px] font-bold tracking-wide text-suite-muted uppercase">
+          <span className="mr-1 text-xs font-bold tracking-wide text-suite-muted uppercase">
             Active
           </span>
           {activeFields.map((field) => (
@@ -72,7 +92,7 @@ export function FilterPanel<K extends string>({
               key={field.key}
               onClick={() => onChange(field.key, "All")}
               aria-label={`Remove ${field.label} filter`}
-              className="rounded-full bg-suite-info-wash px-2.5 py-1 text-[10px] font-bold text-suite-blue outline-none hover:bg-[#dfeaf6] focus-visible:ring-2 focus-visible:ring-brand"
+              className="rounded-full bg-suite-info-wash px-2.5 py-1 text-xs font-bold text-suite-blue outline-none hover:bg-[#dfeaf6] focus-visible:ring-2 focus-visible:ring-brand"
             >
               {field.label}: {filters[field.key]}{" "}
               <span aria-hidden="true">×</span>
@@ -98,3 +118,7 @@ export function FilterPanel<K extends string>({
     </section>
   )
 }
+import { useId } from "react"
+const unavailable = (value: string) =>
+  !value.trim() ||
+  ["not provided", "not available", "unavailable"].includes(value.toLowerCase())

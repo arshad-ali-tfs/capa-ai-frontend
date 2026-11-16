@@ -20,7 +20,7 @@ export function Panel({
       )}
     >
       <h2 className="text-[15px] font-bold">{title}</h2>
-      {help && <p className="mt-1 text-[11px] text-suite-muted">{help}</p>}
+      {help && <p className="mt-1 text-xs text-suite-muted">{help}</p>}
       <div className={cx(help ? "mt-3" : "mt-2")}>{children}</div>
     </section>
   )

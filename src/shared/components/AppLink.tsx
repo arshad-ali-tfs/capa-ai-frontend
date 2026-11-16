@@ -1,22 +1,25 @@
 import { type ReactNode } from "react"
 import { cx } from "@/shared/lib/classNames"
-import { navigateTo } from "@/shared/lib/navigation"
+import { navigateTo, routeHref } from "@/shared/lib/navigation"
 
 export function AppLink({
   href,
   children,
   className,
   ariaLabel,
+  ariaCurrent,
 }: {
   href: string
   children: ReactNode
   className?: string
   ariaLabel?: string
+  ariaCurrent?: "page" | "step"
 }) {
   return (
     <a
-      href={href}
+      href={routeHref(href)}
       aria-label={ariaLabel}
+      aria-current={ariaCurrent}
       onClick={(event) => {
         if (
           href.startsWith("/") &&

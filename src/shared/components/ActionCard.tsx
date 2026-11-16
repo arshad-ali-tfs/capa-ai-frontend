@@ -14,7 +14,7 @@ export function ActionCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-[104px] w-full flex-col items-start gap-[7px] rounded-xl bg-brand p-3.5 text-left text-white outline-none transition-colors hover:bg-brand-strong focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#a6adb7]"
+      className="flex min-h-[112px] w-full flex-col items-start gap-[7px] rounded-xl bg-brand p-3.5 text-left text-white outline-none transition-colors hover:bg-brand-strong focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#a6adb7]"
     >
       <span className="text-[17px] font-bold">{title}</span>
       <span className="text-xs">{help}</span>

@@ -3,6 +3,7 @@ import { EmptyState } from "./EmptyState"
 export interface BarItem {
   id?: string
   label: string
+  fullLabel?: string
   value: number
 }
 
@@ -24,18 +25,18 @@ export function BarList({
       {items.map((item) => {
         const row = (
           <>
-            <span className="w-[38%] min-w-0 truncate text-xs">
+            <span className="w-[38%] min-w-0 break-words text-xs" title={item.fullLabel ?? item.label}>
               {item.label}
             </span>
             <span className="h-3.5 flex-1 overflow-hidden rounded-full bg-[#f0f2f5]">
               <span
                 className="block h-full rounded-full bg-brand"
                 style={{
-                  width: `${Math.max((item.value / maximum) * 100, 4)}%`,
+                  width: `${item.value === 0 ? 0 : Math.max((item.value / maximum) * 100, 1)}%`,
                 }}
               />
             </span>
-            <span className="w-8 text-right text-[11px] font-bold text-suite-muted">
+            <span className="w-8 text-right text-xs font-bold text-suite-muted">
               {item.value}
             </span>
           </>
@@ -45,6 +46,8 @@ export function BarList({
             type="button"
             key={item.id}
             onClick={() => onSelect(item.id!)}
+            aria-label={`${item.fullLabel ?? item.label}: ${item.value}`}
+            title={item.fullLabel ?? item.label}
             className="flex w-full items-center gap-3 rounded-md px-1 py-0.5 text-left outline-none transition-colors hover:bg-suite-hover focus-visible:ring-2 focus-visible:ring-brand"
           >
             {row}

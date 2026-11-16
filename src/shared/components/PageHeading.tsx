@@ -24,7 +24,7 @@ export function PageHeading({
         </div>
         <div className="shrink-0 text-left font-bold lg:text-right">
           {isMockData && (
-            <p className="text-[10px] text-suite-muted">SAMPLE DATA</p>
+            <p className="text-xs text-suite-muted">SAMPLE DATA</p>
           )}
           <p className="mt-0.5 text-xs">{status}</p>
         </div>

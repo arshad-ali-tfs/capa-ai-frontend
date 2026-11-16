@@ -1,105 +1,162 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
 import { mapService } from "./services/mapService"
-import type { MapDataset } from "./types"
-
-type LoadState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | {
-      status: "ready"
-      dataset: MapDataset
-    }
-
-const MapDataContext = createContext<MapDataset | null>(null)
-
+import type { MapDataset, RecordAnnotation, ReviewDraft } from "./types"
+interface DataContext extends MapDataset {
+  refresh: () => Promise<void>
+  refreshing: boolean
+  refreshError: string
+  lastChecked: string
+  setEditing: (editing: boolean) => void
+  editing: boolean
+  saveAnnotation: (
+    id: string,
+    draft: ReviewDraft,
+    revision: number,
+  ) => Promise<RecordAnnotation>
+}
+const MapDataContext = createContext<DataContext | null>(null)
 export function MapDataProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<LoadState>({ status: "loading" })
-  const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    let active = true
-    setState({ status: "loading" })
-    mapService
-      .loadDataset()
-      .then((dataset) => {
-        if (active) setState({ status: "ready", dataset })
-      })
-      .catch((error: unknown) => {
-        if (!active) return
-        setState({
-          status: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Unable to load cluster data.",
-        })
-      })
-    return () => {
-      active = false
+  const [dataset, setDataset] = useState<MapDataset | null>(null)
+  const [error, setError] = useState("")
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastChecked, setLastChecked] = useState("")
+  const [editing, setEditingState] = useState(false)
+  const editingRef = useRef(false),
+    inFlight = useRef(false),
+    mounted = useRef(false)
+  const controller = useRef<AbortController>()
+  const setEditing = useCallback((value: boolean) => {
+    editingRef.current = value
+    setEditingState(value)
+  }, [])
+  const refresh = useCallback(async () => {
+    if (inFlight.current || editingRef.current) return
+    inFlight.current = true
+    setRefreshing(true)
+    const abort = new AbortController()
+    controller.current = abort
+    const timeout = window.setTimeout(() => abort.abort(), 30000)
+    try {
+      const value = await mapService.loadDataset(abort.signal)
+      if (
+        mounted.current &&
+        controller.current === abort &&
+        !editingRef.current
+      ) {
+        setDataset(value)
+        setError("")
+        setLastChecked(new Date().toISOString())
+      }
+    } catch (failure) {
+      if (mounted.current && controller.current === abort)
+        setError(
+          failure instanceof DOMException && failure.name === "AbortError"
+            ? "MAP took too long to respond. Please retry."
+            : failure instanceof Error
+              ? failure.message
+              : "Unable to load MAP data.",
+        )
+    } finally {
+      window.clearTimeout(timeout)
+      if (controller.current === abort) {
+        inFlight.current = false
+        if (mounted.current) setRefreshing(false)
+      }
     }
-  }, [attempt])
-
-  if (state.status === "loading") {
-    return (
-      <section
-        className="rounded-xl border border-suite-line bg-white p-5"
-        role="status"
-        aria-live="polite"
-        aria-busy="true"
-      >
-        <div className="h-4 w-48 animate-pulse rounded bg-suite-line-soft" />
-        <div className="mt-4 space-y-3">
-          {[1, 2, 3].map((item) => (
-            <div
-              key={item}
-              className="h-24 animate-pulse rounded-lg bg-suite-surface"
-            />
-          ))}
-        </div>
-      </section>
+  }, [])
+  useEffect(() => {
+    mounted.current = true
+    void refresh()
+    const check = () => {
+      if (document.visibilityState === "visible") void refresh()
+    }
+    const interval = window.setInterval(check, 60000)
+    window.addEventListener("focus", check)
+    document.addEventListener("visibilitychange", check)
+    return () => {
+      mounted.current = false
+      controller.current?.abort()
+      controller.current = undefined
+      inFlight.current = false
+      window.clearInterval(interval)
+      window.removeEventListener("focus", check)
+      document.removeEventListener("visibilitychange", check)
+    }
+  }, [refresh])
+  async function saveAnnotation(
+    id: string,
+    draft: ReviewDraft,
+    revision: number,
+  ) {
+    if (!dataset) throw new Error("No analysis is loaded.")
+    const run = dataset.analysis.runId
+    const annotation = await mapService.saveAnnotation(run, id, draft, revision)
+    setDataset((current) =>
+      current?.analysis.runId === run
+        ? {
+            ...current,
+            records: current.records.map((record) =>
+              record.id === id ? { ...record, annotation } : record,
+            ),
+          }
+        : current,
     )
+    return annotation
   }
-
-  if (state.status === "error") {
-    return (
+  if (!dataset)
+    return error ? (
       <section
         className="rounded-xl border border-[#efc4b5] bg-[#fff7f3] p-5"
         role="alert"
       >
-        <p className="text-sm font-bold text-[#8c2f12]">
-          Cluster data unavailable
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-[#70402f]">
-          {state.message}
-        </p>
+        <h1 className="text-lg font-bold">Cluster data unavailable</h1>
+        <p className="mt-2 text-sm">{error}</p>
         <button
           type="button"
-          onClick={() => setAttempt((value) => value + 1)}
-          className="mt-3 rounded-lg border border-brand bg-white px-3 py-2 text-xs font-bold text-brand outline-none hover:bg-brand-wash focus-visible:ring-2 focus-visible:ring-brand"
+          onClick={() => void refresh()}
+          disabled={refreshing}
+          className="map-secondary mt-4"
         >
-          Try again
+          {refreshing ? "Retrying…" : "Try again"}
         </button>
       </section>
+    ) : (
+      <section
+        className="rounded-xl border border-suite-line bg-white p-5"
+        role="status"
+        aria-busy="true"
+      >
+        <p className="text-sm font-bold">Loading MAP analysis…</p>
+        <div className="mt-4 h-32 animate-pulse rounded-lg bg-suite-surface" />
+      </section>
     )
-  }
-
   return (
-    <MapDataContext.Provider value={state.dataset}>
+    <MapDataContext.Provider
+      value={{
+        ...dataset,
+        refresh,
+        refreshing,
+        refreshError: error,
+        lastChecked,
+        editing,
+        setEditing,
+        saveAnnotation,
+      }}
+    >
       {children}
     </MapDataContext.Provider>
   )
 }
-
-export function useMapData(): MapDataset {
-  const dataset = useContext(MapDataContext)
-  if (!dataset) {
-    throw new Error("useMapData must be used inside <MapDataProvider>")
-  }
-  return dataset
+export function useMapData() {
+  const value = useContext(MapDataContext)
+  if (!value) throw new Error("MAP data provider is required")
+  return value
 }

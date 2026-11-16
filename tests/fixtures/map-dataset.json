@@ -5,16 +5,38 @@
       "title": "Fictional historical pattern",
       "shortTitle": "Fictional pattern",
       "subtitle": "Fictional historical pattern",
-      "match": 91,
-      "context": "FICTIONAL TEST: recurring label events."
+      "match": 50.0,
+      "context": "FICTIONAL TEST: recurring label events.",
+      "capas": [
+        {
+          "id": "FICTIONAL-CAPA-00042",
+          "description": "FICTIONAL TEST: linked action",
+          "status": "Closed",
+          "recordIds": ["00042"]
+        },
+        {
+          "id": "FICTIONAL-CAPA-00043",
+          "description": "FICTIONAL TEST: linked action",
+          "status": "Closed",
+          "recordIds": ["00043"]
+        }
+      ]
     },
     {
       "id": "8",
       "title": "Fictional second pattern",
       "shortTitle": "Second pattern",
       "subtitle": "Fictional second pattern",
-      "match": 85,
-      "context": "FICTIONAL TEST: laboratory observations."
+      "match": 85.0,
+      "context": "FICTIONAL TEST: laboratory observations.",
+      "capas": [
+        {
+          "id": "FICTIONAL-CAPA-00044",
+          "description": "FICTIONAL TEST: linked action",
+          "status": "Closed",
+          "recordIds": ["00044"]
+        }
+      ]
     }
   ],
   "records": [
@@ -35,9 +57,7 @@
       "productionLine": "Not provided",
       "sourceField": "Detailed description",
       "sourceNarrative": "FICTIONAL TEST: Lot TEST-A, 20 mL on 3 January 2026. Five cartons were held.",
-      "matchSignals": [
-        "Historical cluster similarity: 0.91."
-      ],
+      "matchSignals": ["Historical cluster similarity: 0.91."],
       "volume": 1,
       "daysOpen": 5,
       "monthCounts": {
@@ -45,7 +65,17 @@
       },
       "id": "00042",
       "clusterId": "7",
-      "shortDescription": "Fictional label event"
+      "shortDescription": "Fictional label event",
+      "similarity": 0.2,
+      "warnings": [
+        "Close assignment: the leading clusters have similar scores."
+      ],
+      "annotation": {
+        "assessment": "",
+        "note": "",
+        "revision": 0,
+        "savedAt": null
+      }
     },
     {
       "site": "Second Fictional Site",
@@ -64,9 +94,7 @@
       "productionLine": "Not provided",
       "sourceField": "Detailed description",
       "sourceNarrative": "FICTIONAL TEST: Lot TEST-A, 20 mL on 3 January 2026. Five cartons were held.",
-      "matchSignals": [
-        "Historical cluster similarity: 0.91."
-      ],
+      "matchSignals": ["Historical cluster similarity: 0.91."],
       "volume": 1,
       "daysOpen": 5,
       "monthCounts": {
@@ -74,7 +102,15 @@
       },
       "id": "00043",
       "clusterId": "7",
-      "shortDescription": "Fictional second label event"
+      "shortDescription": "Fictional second label event",
+      "similarity": 0.8,
+      "warnings": [],
+      "annotation": {
+        "assessment": "",
+        "note": "",
+        "revision": 0,
+        "savedAt": null
+      }
     },
     {
       "site": "Fictional Site",
@@ -93,9 +129,7 @@
       "productionLine": "Not provided",
       "sourceField": "Detailed description",
       "sourceNarrative": "FICTIONAL TEST: Lot TEST-A, 20 mL on 3 January 2026. Five cartons were held.",
-      "matchSignals": [
-        "Historical cluster similarity: 0.91."
-      ],
+      "matchSignals": ["Historical cluster similarity: 0.91."],
       "volume": 1,
       "daysOpen": 5,
       "monthCounts": {
@@ -103,11 +137,26 @@
       },
       "id": "00044",
       "clusterId": "8",
-      "shortDescription": "Fictional analytical event"
+      "shortDescription": "Fictional analytical event",
+      "similarity": 0.85,
+      "warnings": [],
+      "annotation": {
+        "assessment": "",
+        "note": "",
+        "revision": 0,
+        "savedAt": null
+      }
     }
   ],
-  "months": [
-    "2026-01"
-  ],
-  "refreshedAt": "2026-01-08"
+  "months": ["2026-01"],
+  "refreshedAt": "2026-01-08",
+  "analysis": {
+    "runId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "recordCount": 3,
+    "sourceRecordCount": 100,
+    "snapshotId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sourceAvailable": true,
+    "sourceMode": "historical",
+    "selection": "configured"
+  }
 }

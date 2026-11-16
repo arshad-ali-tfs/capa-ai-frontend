@@ -12,18 +12,24 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-suite-surface text-suite-ink">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded focus:bg-white focus:p-3 focus:text-brand"
+      >
+        Skip to content
+      </a>
       <header className="flex h-[72px] items-center gap-3.5 bg-[#171a1f] px-4 py-3 sm:px-6">
         <AppLink
           href="/"
-          className="flex items-center gap-3.5"
+          className="flex min-w-0 items-center gap-2 sm:gap-3.5"
           ariaLabel="CAPA.AI home"
         >
           <img
             src="/assets/logo-mark.svg"
             alt=""
-            className="size-[42px] shrink-0"
+            className="size-8 shrink-0 sm:size-[42px]"
           />
-          <span className="text-[28px] font-bold whitespace-nowrap text-brand">
+          <span className="text-[22px] font-bold whitespace-nowrap text-brand sm:text-[28px]">
             CAPA.AI
           </span>
           <span className="hidden text-xs whitespace-nowrap text-[#b8bfcc] sm:inline">
@@ -32,7 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </AppLink>
         <div className="flex-1" />
         <div
-          className="flex h-11 w-[118px] shrink-0 flex-col items-center justify-center bg-brand px-2.5 py-1.5 text-center text-xs leading-tight font-bold text-white"
+          className="flex h-11 w-[104px] shrink-0 flex-col items-center justify-center bg-brand px-2 py-1.5 text-center text-xs leading-tight font-bold text-white sm:w-[118px]"
           aria-label="Thermo Fisher Scientific"
         >
           <span>Thermo Fisher</span>
@@ -52,6 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AppLink
             key={module.href}
             href={module.href}
+            ariaCurrent={module.active ? "page" : undefined}
             className={cx(
               "shrink-0 rounded-md px-3 py-2 text-xs font-bold",
               module.active
@@ -63,7 +70,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </AppLink>
         ))}
       </nav>
-      <main className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 sm:p-6">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 outline-none sm:p-6"
+      >
         {children}
       </main>
     </div>

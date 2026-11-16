@@ -1,6 +1,6 @@
 # Databricks Apps deployment preparation
 
-Each project is intended to become a separate GitHub repository and a separately deployed Databricks App. Only MAP and the common frontend are implemented in this split; the future backend folders are reserved.
+These instructions cover the standalone MAP backend and common frontend repositories. MATCH and AUTHOR have their own separate backend repositories and deployment guides.
 
 1. Publish this project folder as its own repository when requested. Keep .env, dependencies, caches, data and large model artifacts out of the repository.
 2. Connect the repository source to a Databricks workspace and deploy from this project root. app.yaml contains the start command. Python dependencies are declared in requirements.txt/pyproject.toml; the frontend uses package.json/package-lock.json and builds with npm run build.
@@ -12,3 +12,5 @@ Each project is intended to become a separate GitHub repository and a separately
 Local execution is verified separately; a Databricks deployment has not been performed. This is a deployment starting point, not a claim of cloud validation.
 
 References: [Databricks app deployment](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy), [dependency configuration](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/dependencies), [runtime environment and ports](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/system-env), [app development and source limits](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/app-development).
+
+MAP record annotations are persisted with the run artifacts in CAPA_DATA_DIR/map-runs/<run_id>/record_annotations.json. Provision durable run storage and back it up, including annotation history. Per-record revision checks reject stale updates; these annotations do not approve cluster assignments or write to TrackWise. Validate GET dataset/annotations and PUT annotation requests through the deployed frontend proxy as part of acceptance.

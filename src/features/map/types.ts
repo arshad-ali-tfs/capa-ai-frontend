@@ -1,7 +1,5 @@
 export type Criticality = string
-
 export type RecordStatus = string
-
 export type OverviewFilterKey =
   | "year"
   | "criticality"
@@ -13,11 +11,22 @@ export type OverviewFilterKey =
   | "suite"
   | "productionArea"
   | "productionLine"
-
 export type DetailFilterKey = "division" | "site" | "year" | "department"
-
+export type MapFilterKey = OverviewFilterKey | "division"
 export type Filters<K extends string> = Record<K, string>
-
+export interface ReviewDraft {
+  assessment: string
+  note: string
+}
+export interface RecordAnnotation extends ReviewDraft {
+  revision: number
+  savedAt: string | null
+}
+export interface SourceSection {
+  key: string
+  label: string
+  text: string
+}
 export interface DeviationRecord {
   id: string
   clusterId: string
@@ -38,12 +47,21 @@ export interface DeviationRecord {
   shortDescription: string
   sourceField: string
   sourceNarrative: string
+  sourceSections?: SourceSection[]
   matchSignals: string[]
+  similarity: number | null
+  warnings: string[]
+  annotation: RecordAnnotation
   volume: number
   daysOpen: number | null
   monthCounts: Record<string, number>
 }
-
+export interface CapaRelationship {
+  id: string
+  description: string
+  status: string
+  recordIds: string[]
+}
 export interface Cluster {
   id: string
   title: string
@@ -51,29 +69,25 @@ export interface Cluster {
   subtitle: string
   match: number | null
   context: string
-  capa?: {
-    id: string
-    description: string
-    status: string
-  }
+  capas: CapaRelationship[]
 }
-
-export interface ReviewDraft {
-  assessment: string
-  note: string
-}
-
 export interface MapDataset {
   clusters: Cluster[]
   records: DeviationRecord[]
   months: string[]
   refreshedAt: string
+  analysis: {
+    runId: string
+    recordCount: number
+    sourceRecordCount: number | null
+    snapshotId: string | null
+    sourceAvailable: boolean
+    sourceMode: string
+    selection: "configured" | "latest_completed"
+  }
 }
-
 export type MapRoute =
   | { type: "overview" }
-  | {
-      type: "cluster"
-      clusterId: string
-    }
+  | { type: "cluster"; clusterId: string }
   | { type: "evidence"; clusterId: string; recordId: string }
+  | { type: "record"; recordId: string }
