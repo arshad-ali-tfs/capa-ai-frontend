@@ -12,6 +12,7 @@ import { GuidedWorkspace } from "../components/GuidedWorkspace"
 import { AnalysisStatus } from "../components/AnalysisStatus"
 import { RecordList } from "../components/RecordList"
 import { SourceReader } from "../components/SourceReader"
+import { FiveWhExtraction } from "../components/FiveWhExtraction"
 import { ReviewerAnnotation } from "../components/ReviewerAnnotation"
 import { useMapData } from "../MapDataProvider"
 export function EvidenceReviewScreen({
@@ -100,7 +101,10 @@ export function EvidenceReviewScreen({
           </section>
         )}
         <section aria-label="Evidence workspace" className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
-          <SourceReader record={record} containerRef={sourceRef} onReview={() => focusPanel(reviewRef.current)} />
+          <div className="min-w-0 space-y-4">
+            <SourceReader record={record} containerRef={sourceRef} onReview={() => focusPanel(reviewRef.current)} />
+            <FiveWhExtraction value={record.fiveWh} />
+          </div>
           <aside aria-label="Review context" className="map-review-sidebar min-w-0 space-y-4 self-start">
             <Panel
               title={

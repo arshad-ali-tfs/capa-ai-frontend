@@ -20,7 +20,7 @@ function MapContentBoundary({ route }: { route: MapRoute }) {
   return <MapRouteContent key={analysis.runId} route={route} />
 }
 function MapRouteContent({ route }: { route: MapRoute }) {
-  const { clusters, records, setEditing } = useMapData()
+  const { clusters, records, setEditing, selectedRun } = useMapData()
   const [filters, setFilters] = useState(readMapFilters)
   const review = useReviewDrafts()
   const busy = review.dirty || review.saving
@@ -36,19 +36,21 @@ function MapRouteContent({ route }: { route: MapRoute }) {
     }
     window.addEventListener("beforeunload", beforeUnload)
     setNavigationGuard(
-      (path) =>
-        path.startsWith("/map") ||
-        window.confirm(
+      (path) => {
+        if (path.startsWith("/map"))
+          return (new URL(path, window.location.origin).searchParams.get("run") || "") === selectedRun
+        return window.confirm(
           review.saving
             ? "An annotation is still saving. Leave MAP?"
             : "Leave MAP and discard unsaved reviewer annotations?",
-        ),
+        )
+      },
     )
     return () => {
       window.removeEventListener("beforeunload", beforeUnload)
       setNavigationGuard(null)
     }
-  }, [busy, review.saving])
+  }, [busy, review.saving, selectedRun])
   useEffect(() => {
     setFilters(readMapFilters())
   }, [route])
@@ -59,6 +61,7 @@ function MapRouteContent({ route }: { route: MapRoute }) {
   function update(next: typeof filters) {
     setFilters(next)
     const params = new URLSearchParams()
+    if (selectedRun) params.set("run", selectedRun)
     for (const [key, value] of Object.entries(next))
       if (value !== "All") params.set(key, value)
     window.history.replaceState(

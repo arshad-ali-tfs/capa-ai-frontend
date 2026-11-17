@@ -1,5 +1,5 @@
 import { requestJson } from "@/shared/api/httpClient"
-import type { MapDataset, RecordAnnotation, ReviewDraft } from "../types"
+import type { MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "../types"
 const invalid = () =>
   new Error(
     "MAP returned an invalid dataset. Retry, or contact the service owner if the issue continues.",
@@ -123,6 +123,10 @@ export function validateDataset(value: unknown): MapDataset {
     )
       throw invalid()
     validateAnnotation(r.annotation)
+    if (r.fiveWh !== undefined && (
+      !object(r.fiveWh) ||
+      !["who", "what", "when", "where", "why", "how"].every(key => typeof r.fiveWh[key] === "string")
+    )) throw invalid()
     if (r.sourceSections !== undefined) {
       if (!Array.isArray(r.sourceSections)) throw invalid()
       const sectionKeys = new Set<string>()
@@ -140,8 +144,25 @@ export function validateDataset(value: unknown): MapDataset {
   return value as MapDataset
 }
 export const mapService = {
-  loadDataset: async (signal?: AbortSignal) =>
-    validateDataset(await requestJson<unknown>("/map/dataset", { signal })),
+  loadDataset: async (signal?: AbortSignal, run = "") => {
+    if (run && !/^[a-f0-9]{32}$/.test(run)) throw new Error("Invalid analysis run in the link.")
+    const value = validateDataset(await requestJson<unknown>(
+      run ? `/api/v1/map/runs/${run}/dataset` : "/map/dataset", { signal },
+    ))
+    if (run && value.analysis.runId !== run) throw new Error("MAP returned a different analysis. Please retry.")
+    return value
+  },
+  listRuns: async (signal?: AbortSignal): Promise<MapRun[]> => {
+    const value = await requestJson<unknown>("/api/v1/map/runs?limit=100000", { signal })
+    if (!object(value) || !Array.isArray(value.items)) throw invalid()
+    const completed = value.items.filter((run: unknown) => object(run) && run.status === "completed")
+    return completed.map((run: any) => {
+      if (!/^[a-f0-9]{32}$/.test(run.run_id) || typeof run.source_mode !== "string") throw invalid()
+      return { id: run.run_id, sourceMode: run.source_mode,
+        records: Number.isInteger(run.records) && run.records >= 0 ? run.records : null,
+        createdAt: typeof run.created_at === "string" ? run.created_at : run.updated_at || "" }
+    })
+  },
   saveAnnotation: async (
     run: string,
     record: string,

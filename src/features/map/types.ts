@@ -27,6 +27,14 @@ export interface SourceSection {
   label: string
   text: string
 }
+export interface FiveWh {
+  who: string
+  what: string
+  when: string
+  where: string
+  why: string
+  how: string
+}
 export interface DeviationRecord {
   id: string
   clusterId: string
@@ -48,6 +56,7 @@ export interface DeviationRecord {
   sourceField: string
   sourceNarrative: string
   sourceSections?: SourceSection[]
+  fiveWh?: FiveWh
   matchSignals: string[]
   similarity: number | null
   warnings: string[]
@@ -70,6 +79,12 @@ export interface Cluster {
   match: number | null
   context: string
   capas: CapaRelationship[]
+}
+export interface MapRun {
+  id: string
+  records: number | null
+  createdAt: string
+  sourceMode: string
 }
 export interface MapDataset {
   clusters: Cluster[]

@@ -53,11 +53,11 @@ Run commands from **this repository's root** unless another directory is stated.
 In the MAP backend repository, start its configured Docker service:
 
 ```powershell
-# Docker Desktop's Linux engine and MAP data/environment must be ready.
-.\Start-Docker.ps1
+# Prepare and start MAP without submitting a new paid analysis.
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Run-Map.ps1 -ServeOnly
 ```
 
-The native alternative is `Start-Map.ps1`. MAP needs a source snapshot and completed analysis to display. A fresh backend clone does not include this workstation's saved results; follow the [MAP setup guide](https://github.com/rahul-jha-tfs/capa-ai-map-backend#run-locally).
+The launcher handles fresh Docker setup and source/model checks. MAP needs a source snapshot and completed analysis to display. To reuse existing results without another paid run, restore the corresponding saved run folders and source snapshots under the backend data directory before starting. For a new analysis, follow the pipeline options in the backend README. A fresh backend clone does not include this workstation's saved results; follow the [MAP setup guide](https://github.com/rahul-jha-tfs/capa-ai-map-backend#run-locally).
 
 ### 2. Install and run the frontend
 
@@ -71,7 +71,7 @@ npm run build
 npm run start
 ```
 
-Skip cloning if the folder already exists. Open **http://127.0.0.1:8100/map**. Keep both terminals open; stop a process with **Ctrl+C**.
+Skip cloning if the folder already exists. Open **http://127.0.0.1:8100/map**. Keep the frontend terminal open; stop it with **Ctrl+C**. MAP runs in a detached Docker container and stays running after its setup terminal closes.
 
 When dependencies and `dist` already exist, only `npm run start` is needed. Rebuild after source changes. Starting backend containers does not also start this Node server.
 
@@ -91,7 +91,9 @@ Development also uses port 8100. Run one frontend server at a time. MATCH and AU
 Invoke-RestMethod "http://127.0.0.1:8100/map/dataset"
 ```
 
-A successful response contains `analysis`, `clusters` and `records`. The reference workstation displays **40 analysed records in 18 clusters** from **19,643 accepted source records**. Coverage figures describe that saved analysis; they are not application limits, and the UI does not imply that every source record was analysed.
+A successful response contains `analysis`, `clusters` and `records`. Coverage figures describe the selected saved analysis; they are not application limits, and the UI does not imply that every source record was analysed.
+
+Use **Analysis run** above the MAP workspace to open a previous completed result. Options show the record count, date and run ID; synthetic analyses are marked **Test**. The selected run is kept in the URL while navigating, filtering and reloading. Choosing **Latest analysis** returns to the backend's default result. Save or discard reviewer edits before switching; annotations stay attached to their original run.
 
 ## What you can do today
 
@@ -109,7 +111,7 @@ flowchart LR
 | Home | Supplied shell and module entry points |
 | Overview | Cluster table, filters, charts and analysis coverage |
 | Cluster detail | Member records, source dimensions, historical context and explicit CAPA relationships |
-| Evidence review | Field-by-field Description, Investigation and Conclusion; matching context and notes |
+| Evidence review | Original source fields, saved 5W1H extraction, matching context and reviewer notes |
 | Navigation | Filters retained in URLs; consistent guided investigation across screens |
 | Review | Saved assessments/notes with revision and conflict checks |
 | Responsive layout | Desktop, tablet and phone layouts with source/review navigation |
@@ -126,7 +128,7 @@ Unsaved notes pause refresh and prompt before leaving. Failed refreshes keep the
 - **Similarity:** average of available record-level similarities within the group/filter, not clustering accuracy or a probability of correctness.
 - **Source coverage:** analysed record count compared with the available imported source.
 
-The application loads API data. Fictional browser-test fixtures live under `tests/`; they are not an application fallback. Missing data is shown as unavailable. Analysis-run controls and MATCH/AUTHOR workflows are not added to the supplied MAP design.
+The application loads API data. Fictional browser-test fixtures live under `tests/`; they are not an application fallback. Missing data is shown as unavailable. Saved analysis selection is available above the MAP workspace. MATCH/AUTHOR workflows are pending their frontend integration.
 
 ## Configuration
 
@@ -156,7 +158,9 @@ This repo currently has **no Dockerfile**. The three backend images are separate
 
 | Request through the frontend | Purpose |
 |---|---|
-| `GET /map/dataset` | Analysis, clusters, records, source sections and annotations |
+| `GET /map/dataset` | Default analysis, clusters, records, source sections, saved 5W1H and annotations |
+| `GET /api/v1/map/runs?limit=100000` | List saved analyses for the run selector |
+| `GET /api/v1/map/runs/{run_id}/dataset` | Load the selected analysis and its own saved outputs |
 | `GET /api/v1/map/runs/{run_id}/annotations` | Read saved record annotations |
 | `PUT /api/v1/map/runs/{run_id}/records/{record_id}/annotation` | Save `assessment`, `note` and `expected_revision` |
 
@@ -217,3 +221,7 @@ Remove-Item Env:MAP_REAL_DATA
 The frontend deploys separately from the backends. [DEPLOYMENT.md](DEPLOYMENT.md) describes Databricks Apps preparation and the `app.yaml` start command.
 
 Build static assets, run the Node server, configure `MAP_API_TARGET` for the deployed MAP URL, and establish server-side app-to-app permissions/authentication. The bearer-token setting does not itself acquire or renew production tokens. Keep model keys in the backend. Local MAP integration is verified; Databricks deployment needs target-workspace checks.
+
+MAP review warnings come from the backend. Close scores do not trigger Needs review. Missing historical cluster descriptions and unassigned records retain specific warnings; viewing a warning does not make an LLM call.
+
+The record review screen includes a 5W1H extraction panel below the source narrative. It shows the six saved AI output categories for the selected record and analysis. Unavailable categories are labelled clearly. This reads existing results without rerunning the pipeline or calling the model.

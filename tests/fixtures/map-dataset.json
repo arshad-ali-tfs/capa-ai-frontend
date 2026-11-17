@@ -67,9 +67,7 @@
       "clusterId": "7",
       "shortDescription": "Fictional label event",
       "similarity": 0.2,
-      "warnings": [
-        "Close assignment: the leading clusters have similar scores."
-      ],
+      "warnings": [],
       "annotation": {
         "assessment": "",
         "note": "",

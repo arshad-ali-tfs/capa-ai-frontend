@@ -8,8 +8,14 @@ import {
   type ReactNode,
 } from "react"
 import { mapService } from "./services/mapService"
-import type { MapDataset, RecordAnnotation, ReviewDraft } from "./types"
+import { navigateTo } from "@/shared/lib/navigation"
+import type { MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "./types"
+const runFromLocation = () => new URLSearchParams(window.location.search).get("run") || ""
 interface DataContext extends MapDataset {
+  runs: MapRun[]
+  runsError: string
+  selectedRun: string
+  selectRun: (run: string) => Promise<void>
   refresh: () => Promise<void>
   refreshing: boolean
   refreshError: string
@@ -25,6 +31,10 @@ interface DataContext extends MapDataset {
 const MapDataContext = createContext<DataContext | null>(null)
 export function MapDataProvider({ children }: { children: ReactNode }) {
   const [dataset, setDataset] = useState<MapDataset | null>(null)
+  const [runs, setRuns] = useState<MapRun[]>([])
+  const [runsError, setRunsError] = useState("")
+  const [selectedRun, setSelectedRun] = useState(runFromLocation)
+  const selectedRef = useRef(selectedRun)
   const [error, setError] = useState("")
   const [refreshing, setRefreshing] = useState(false)
   const [lastChecked, setLastChecked] = useState("")
@@ -37,23 +47,34 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     editingRef.current = value
     setEditingState(value)
   }, [])
-  const refresh = useCallback(async () => {
-    if (inFlight.current || editingRef.current) return
+  const load = useCallback(async (run: string, navigate = false, interrupt = false) => {
+    if ((inFlight.current && !interrupt) || editingRef.current) return
+    controller.current?.abort()
     inFlight.current = true
     setRefreshing(true)
     const abort = new AbortController()
     controller.current = abort
     const timeout = window.setTimeout(() => abort.abort(), 30000)
     try {
-      const value = await mapService.loadDataset(abort.signal)
+      // History failures must not hide an otherwise usable completed analysis.
+      void mapService.listRuns(abort.signal).then((value) => {
+        if (mounted.current && controller.current === abort) { setRuns(value); setRunsError("") }
+      }).catch(() => {
+        if (mounted.current && controller.current === abort && !abort.signal.aborted)
+          setRunsError("Previous runs could not be loaded. Refresh to retry.")
+      })
+      const value = await mapService.loadDataset(abort.signal, run)
       if (
         mounted.current &&
         controller.current === abort &&
         !editingRef.current
       ) {
         setDataset(value)
+        selectedRef.current = run
+        setSelectedRun(run)
         setError("")
         setLastChecked(new Date().toISOString())
+        if (navigate) navigateTo(`/map?${new URLSearchParams(run ? { run } : {}).toString()}`)
       }
     } catch (failure) {
       if (mounted.current && controller.current === abort)
@@ -72,14 +93,21 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [])
+  const refresh = useCallback(() => load(runFromLocation()), [load])
+  const selectRun = useCallback((run: string) => load(run, true), [load])
   useEffect(() => {
     mounted.current = true
     void refresh()
     const check = () => {
       if (document.visibilityState === "visible") void refresh()
     }
+    const changedRun = () => {
+      if (runFromLocation() !== selectedRef.current && !editingRef.current)
+        void load(runFromLocation(), false, true)
+    }
     const interval = window.setInterval(check, 60000)
     window.addEventListener("focus", check)
+    window.addEventListener("popstate", changedRun)
     document.addEventListener("visibilitychange", check)
     return () => {
       mounted.current = false
@@ -88,9 +116,10 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
       inFlight.current = false
       window.clearInterval(interval)
       window.removeEventListener("focus", check)
+      window.removeEventListener("popstate", changedRun)
       document.removeEventListener("visibilitychange", check)
     }
-  }, [refresh])
+  }, [refresh, load])
   async function saveAnnotation(
     id: string,
     draft: ReviewDraft,
@@ -142,6 +171,10 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     <MapDataContext.Provider
       value={{
         ...dataset,
+        runs,
+        runsError,
+        selectedRun,
+        selectRun,
         refresh,
         refreshing,
         refreshError: error,

@@ -25,3 +25,29 @@ The production build and TypeScript checks passed. All four supplied screens wer
 - 30 updated screenshots were captured at 1440px, 820px and 390px, including expanded panels and identical-content comparisons. The captured pages had no uncaught page errors, page-width overflow or missing small-screen pattern notices. Tables retain semantic headers and mobile cards, collapsed panels keep their own height, and long narratives retain every character. Historical summary formatting preserves prose and values; compact chart labels retain full titles in tooltips and accessible names. See .local/mockup-fixes/browser-verification.json and data-integrity.json.
 
 The application has no sample-data fallback. Fictional fixtures and verification artifacts live outside application source. Saved annotations are local record-review notes, separate from cluster-summary approvals and QMS decisions. The model, prompts, extraction inputs and clustering pipeline were not changed. This work was not pushed to GitHub and was not deployed to Databricks.
+
+## Saved analysis selector — 17 November 2026
+
+The default backend analysis now contains 1,000 historical records in 64 clusters, with 19,643 records in the source snapshot. A compact Analysis run dropdown loads previous completed results using the existing run-specific dataset API. It retains selection in links, filters, browser history and reloads. Switching clears filters from the previous analysis, preserves run-specific annotations, and is disabled during unsaved edits or pending saves. Failed or mismatched responses leave the displayed result intact. Test analyses are explicitly labelled.
+
+The complete controlled browser suite passed 69 checks on desktop, tablet and phone. The expanded selector tests then passed 12 checks, including protection against a response for a different run. Two read-only live browser checks passed on desktop and phone: default 1,000-record coverage, switching to the retained 40-record run, reloading, returning to 1,000 records and opening source evidence. All four previous datasets passed the actual frontend validator. Backend and frontend responses contain identical IDs, scores and all 1,000 source sections. Earlier run files retain their original checksums. These checks do not establish clustering accuracy.
+
+The production TypeScript/Vite build passed. Live captures and test reports are retained under the ignored `.local` directory. No reviewer notes were written to the historical analyses by these checks. All changes remain local.
+
+## Review warnings - 17 November 2026
+
+Close scores no longer produce Needs review badges, cluster warning counts or evidence-page warnings. The backend applies this policy to old analyses and future runs. Missing cluster descriptions and unassigned records retain warnings; missing descriptions explicitly identify a cluster catalogue gap rather than a bad record assignment. Page layouts and the guided investigation navigation are unchanged.
+
+The production TypeScript/Vite build passed. All 72 existing controlled browser checks passed, and six focused warning checks passed across desktop, tablet and phone after correcting a test selector to target the visible responsive badge. These verify no warning/count when no issue is returned and correct counts and specific text for a missing-description warning. No application selector or layout change was required.
+
+Four read-only live browser scenarios verified records 34163 and 11322 on desktop and phone: the former close-only alert is absent, the missing cluster 15 description warning is present, the 1,000-record analysis remains active, and there is no horizontal overflow or uncaught page error. Screenshots and proof are under the ignored `.local` directory. Backend checks confirmed identical frontend/backend datasets, 1,000 records and 64 clusters, unchanged assignments/scores/source text/annotations, and unchanged saved-run files. No pipeline was launched, no paid API calls were made, and no GitHub push was performed.
+
+## Saved 5W1H display - 17 November 2026
+
+The record review screen now shows Who, What, When, Where, Why and How in a panel below the original source narrative. It is labelled as saved AI output for the chosen analysis. Valid text keeps its wording and line breaks; blank values and common unavailable markers display as Not available. Older API responses without extraction metadata remain readable with an explicit unavailable state. Invalid extraction metadata is rejected by the dataset validator.
+
+The guided investigation navigation and existing source/matching/annotation controls retain their layout. The panel uses labelled rows with wrapped text and stacked labels on phones. No editing or regeneration control was added; changing records or analyses loads that result's own saved output.
+
+The production TypeScript/Vite build and all 90 controlled browser checks passed across desktop, tablet and phone. Twelve extraction checks cover exact text, literal markup, Unicode, dates/quantities/IDs, legacy and unavailable values, malformed payloads, and record/run changes across reload. Existing source reader, navigation, warning and annotation checks also passed.
+
+Four read-only live browser scenarios compared every displayed category and original source field against the backend for records 34163 (1,000-record analysis) and 7033 (40-record analysis), on desktop and phone. All values matched, with no horizontal overflow, uncaught page errors or write requests. Screenshots and proof are in `.local/fivewh/` and `.local/fivewh-live-proof.json`. Backend verification additionally matched all 6,240 saved category values and confirmed unchanged run files. No pipeline rerun, paid model call or GitHub push was performed.
