@@ -91,6 +91,7 @@ export interface Cluster {
   titleSource?: ClusterContextSource
   analysisContext?: AnalysisClusterContext | null
   historicalContext?: HistoricalClusterContext | null
+  warnings?: string[]
   capas: CapaRelationship[]
 }
 export interface MapRun {

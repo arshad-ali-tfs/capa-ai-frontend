@@ -69,6 +69,7 @@ export function validateDataset(value: unknown): MapDataset {
       !c.id ||
       clusterIds.has(c.id) ||
       !nullableNumber(c.match) ||
+      (c.warnings !== undefined && !strings(c.warnings)) ||
       !Array.isArray(c.capas)
     )
       throw invalid()

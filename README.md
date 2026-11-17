@@ -222,7 +222,7 @@ The frontend deploys separately from the backends. [DEPLOYMENT.md](DEPLOYMENT.md
 
 Build static assets, run the Node server, configure `MAP_API_TARGET` for the deployed MAP URL, and establish server-side app-to-app permissions/authentication. The bearer-token setting does not itself acquire or renew production tokens. Keep model keys in the backend. Local MAP integration is verified; Databricks deployment needs target-workspace checks.
 
-MAP review warnings come from the backend. Close scores do not trigger Needs review. Missing historical cluster descriptions and unassigned records retain specific warnings; viewing a warning does not make an LLM call.
+MAP review warnings come from the backend. Close scores do not trigger Needs review. Missing historical names or descriptions appear once on the cluster detail screen using the cluster's `warnings` array; they do not flag individual records or increase record review counts. Record warnings, including unavailable assignments, remain on the relevant evidence screen. Viewing a warning does not make an LLM call.
 
 The record review screen includes a 5W1H extraction panel below the source narrative. It shows the six saved AI output categories for the selected record and analysis. Unavailable categories are labelled clearly. This reads existing results without rerunning the pipeline or calling the model.
 

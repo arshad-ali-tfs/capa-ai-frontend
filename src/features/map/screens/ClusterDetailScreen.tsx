@@ -102,6 +102,19 @@ export function ClusterDetailScreen({
           primaryCount={4}
           resultLabel={`${visible.length} ${visible.length === 1 ? "record" : "records"}`}
         />
+        {!!cluster.warnings?.length && (
+          <section
+            aria-label="Cluster warnings"
+            className="rounded-lg border border-[#efd99d] bg-warn-wash p-4 text-sm text-warn-ink"
+          >
+            <h2 className="font-bold">Cluster information</h2>
+            <ul className="mt-2 list-inside list-disc space-y-1">
+              {cluster.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </section>
+        )}
         {warnings.length > 0 && (
           <p
             className="rounded-lg border border-[#efd99d] bg-warn-wash p-3 text-sm text-warn-ink"
