@@ -1,7 +1,6 @@
 import { navigateTo } from "@/shared/lib/navigation"
 import {
   ActionCard,
-  Badge,
   BarList,
   DisclosurePanel,
   FilterPanel,
@@ -26,7 +25,7 @@ import { GuidedWorkspace } from "../components/GuidedWorkspace"
 import { AnalysisStatus } from "../components/AnalysisStatus"
 import { CapaContext } from "../components/CapaContext"
 import { RecordList } from "../components/RecordList"
-import { HistoricalContext } from "../components/HistoricalContext"
+import { ClusterContext } from "../components/ClusterContext"
 import { useMapData } from "../MapDataProvider"
 export function ClusterDetailScreen({
   cluster,
@@ -128,17 +127,7 @@ export function ClusterDetailScreen({
           </DisclosurePanel>
         </section>
         <section className="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,.78fr)_minmax(0,1fr)]">
-          <Panel
-            title="Cluster context"
-            help="Historical summary for the full cluster; it does not change with these filters."
-          >
-            <Badge tone="amber">Historical analytical summary</Badge>
-            <HistoricalContext text={cluster.context} />
-            <p className="mt-4 text-xs text-suite-muted">
-              Cluster membership does not establish root cause, severity or
-              product impact.
-            </p>
-          </Panel>
+          <ClusterContext cluster={cluster} />
           <DisclosurePanel
             title="Deviation occurrences"
             help="Record counts by opened month, within the current filters."

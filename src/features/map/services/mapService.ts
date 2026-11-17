@@ -59,6 +59,7 @@ export function validateDataset(value: unknown): MapDataset {
     throw invalid()
   const ids = new Set<string>(),
     clusterIds = new Set<string>()
+  const clusterRecordCounts = new Map<string, number>()
   for (const c of value.clusters) {
     if (
       !object(c) ||
@@ -72,6 +73,22 @@ export function validateDataset(value: unknown): MapDataset {
     )
       throw invalid()
     clusterIds.add(c.id)
+    if (["contextSource", "titleSource", "analysisContext", "historicalContext"].some(key => c[key] !== undefined)) {
+      const sources = ["current_analysis", "historical", "unavailable"]
+      if (!sources.includes(c.contextSource) || !sources.includes(c.titleSource)) throw invalid()
+      for (const key of ["analysisContext", "historicalContext"]) {
+        const context = c[key]
+        if (context !== null && (!object(context) ||
+          typeof context.title !== "string" || typeof context.summary !== "string" ||
+          !(context.title.trim() || context.summary.trim()))) throw invalid()
+      }
+      const current = c.analysisContext, historical = c.historicalContext
+      if (current !== null && (!Number.isInteger(current.recordCount) || current.recordCount < 1 || current.runId !== analysis.runId)) throw invalid()
+      for (const [source, context] of [["current_analysis", current], ["historical", historical]] as const) {
+        if (c.contextSource === source && (!context?.summary.trim() || c.context !== context.summary)) throw invalid()
+        if (c.titleSource === source && (!context?.title.trim() || c.title !== context.title)) throw invalid()
+      }
+    }
     for (const capa of c.capas)
       if (
         !object(capa) ||
@@ -140,7 +157,10 @@ export function validateDataset(value: unknown): MapDataset {
       }
     }
     ids.add(r.id)
+    if (r.clusterId) clusterRecordCounts.set(r.clusterId, (clusterRecordCounts.get(r.clusterId) || 0) + 1)
   }
+  for (const cluster of value.clusters)
+    if (cluster.analysisContext && cluster.analysisContext.recordCount !== (clusterRecordCounts.get(cluster.id) || 0)) throw invalid()
   return value as MapDataset
 }
 export const mapService = {

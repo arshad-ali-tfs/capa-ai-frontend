@@ -225,3 +225,5 @@ Build static assets, run the Node server, configure `MAP_API_TARGET` for the dep
 MAP review warnings come from the backend. Close scores do not trigger Needs review. Missing historical cluster descriptions and unassigned records retain specific warnings; viewing a warning does not make an LLM call.
 
 The record review screen includes a 5W1H extraction panel below the source narrative. It shows the six saved AI output categories for the selected record and analysis. Unavailable categories are labelled clearly. This reads existing results without rerunning the pipeline or calling the model.
+
+Cluster context shows the saved AI summary for the selected analysis, with a separate expandable historical reference where available. The summary covers all records in that saved cluster; changing filters does not regenerate it. Historical cluster names stay stable, with the saved analysis title used when a historical name is missing. Summaries and confidence labels remain AI output for review, not measured accuracy or approved historical definitions. Older results without a saved analysis summary fall back explicitly to the historical reference or an unavailable state.

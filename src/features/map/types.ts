@@ -71,6 +71,15 @@ export interface CapaRelationship {
   status: string
   recordIds: string[]
 }
+export type ClusterContextSource = "current_analysis" | "historical" | "unavailable"
+export interface HistoricalClusterContext {
+  title: string
+  summary: string
+}
+export interface AnalysisClusterContext extends HistoricalClusterContext {
+  recordCount: number
+  runId: string
+}
 export interface Cluster {
   id: string
   title: string
@@ -78,6 +87,10 @@ export interface Cluster {
   subtitle: string
   match: number | null
   context: string
+  contextSource?: ClusterContextSource
+  titleSource?: ClusterContextSource
+  analysisContext?: AnalysisClusterContext | null
+  historicalContext?: HistoricalClusterContext | null
   capas: CapaRelationship[]
 }
 export interface MapRun {
