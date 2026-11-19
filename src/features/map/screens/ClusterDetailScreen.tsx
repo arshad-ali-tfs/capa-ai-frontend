@@ -1,10 +1,8 @@
-import { navigateTo } from "@/shared/lib/navigation"
 import {
-  ActionCard,
   BarList,
   DisclosurePanel,
   FilterPanel,
-  MetricCard,
+  HelpTooltip,
   PageHeading,
   Panel,
 } from "@/shared/components"
@@ -13,19 +11,18 @@ import {
   filterRecords,
   formatDate,
   getFilterOptions,
-  isMajorCritical,
-  medianDaysOpen,
   monthTotals,
-  recordPath,
   recordsForCluster,
   sumVolume,
 } from "../utils"
 import { detailFields, overviewFields } from "../constants"
+import { filterHelp, mapHelp } from "../helpText"
 import { GuidedWorkspace } from "../components/GuidedWorkspace"
 import { AnalysisStatus } from "../components/AnalysisStatus"
 import { CapaContext } from "../components/CapaContext"
 import { RecordList } from "../components/RecordList"
 import { ClusterContext } from "../components/ClusterContext"
+import { ClusterMetrics } from "../components/ClusterMetrics"
 import { useMapData } from "../MapDataProvider"
 export function ClusterDetailScreen({
   cluster,
@@ -40,8 +37,7 @@ export function ClusterDetailScreen({
 }) {
   const { records, months, refreshedAt } = useMapData()
   const all = recordsForCluster(records, cluster.id),
-    visible = filterRecords(all, filters),
-    first = visible[0]
+    visible = filterRecords(all, filters)
   const fields = [
     ...detailFields,
     ...overviewFields.filter(
@@ -64,38 +60,14 @@ export function ClusterDetailScreen({
       />
       <AnalysisStatus />
       <GuidedWorkspace step={2} clusterId={cluster.id}>
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            label="Deviations in cluster"
-            value={sumVolume(visible)}
-            help="Within the current filters"
-          />
-          <MetricCard
-            label="Major / Critical"
-            value={sumVolume(visible.filter(isMajorCritical))}
-            help="Source criticality classification"
-          />
-          <MetricCard
-            label="Median days open"
-            value={medianDaysOpen(visible)}
-            help="From source opened/closed dates"
-          />
-          <ActionCard
-            title="Review records"
-            help={
-              first
-                ? "Open the first visible deviation"
-                : "No record matches these filters"
-            }
-            disabled={!first}
-            onClick={() => first && navigateTo(recordPath(first))}
-          />
-        </section>
+        <ClusterMetrics records={visible} clusterTotal={sumVolume(all)} />
         <FilterPanel
+          tooltip={mapHelp.filters}
           filters={filters}
           fields={fields.map((field) => ({
             ...field,
             options: getFilterOptions(all, field.key),
+            tooltip: filterHelp[field.key],
           }))}
           onChange={onFilterChange}
           onClear={onClear}
@@ -107,7 +79,10 @@ export function ClusterDetailScreen({
             aria-label="Cluster warnings"
             className="rounded-lg border border-[#efd99d] bg-warn-wash p-4 text-sm text-warn-ink"
           >
-            <h2 className="font-bold">Cluster information</h2>
+            <div className="flex items-center gap-1">
+              <h2 className="font-bold">Cluster information</h2>
+              <HelpTooltip label="Cluster information">{mapHelp.clusterInfo}</HelpTooltip>
+            </div>
             <ul className="mt-2 list-inside list-disc space-y-1">
               {cluster.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
@@ -145,6 +120,10 @@ export function ClusterDetailScreen({
             title="Deviation occurrences"
             help="Record counts by opened month, within the current filters."
           >
+            <div className="mb-3 flex items-center gap-1 text-xs text-suite-muted">
+              <span>Reading this chart</span>
+              <HelpTooltip label="Deviation occurrences">{mapHelp.occurrences}</HelpTooltip>
+            </div>
             <BarList items={monthTotals(visible, months)} />
           </DisclosurePanel>
         </section>

@@ -24,13 +24,13 @@ const workspaceCards: WorkspaceCard[] = [
   },
   {
     module: "MATCH",
-    status: "IN DEVELOPMENT",
+    status: "PILOT",
     title: "Find related history",
     description:
       "Compare a deviation with historical cases that share relevant event characteristics, so investigators can review potentially useful precedent.",
     supports: "Human review determines relevance and applicability.",
-    action: "Find history • not available",
-    placeholder: true,
+    action: "Open MATCH",
+    href: "/match",
   },
   {
     module: "ASK",

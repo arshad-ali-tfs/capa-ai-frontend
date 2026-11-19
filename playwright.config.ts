@@ -18,10 +18,20 @@ export default defineConfig({
     timeout: 30000,
   },
   projects: [
-    { name: "desktop", use: { viewport: { width: 1440, height: 1000 } } },
-    { name: "tablet", use: { viewport: { width: 820, height: 1180 } } },
+    { name: "unit", testMatch: /[\\/]unit[\\/].*\.spec\.ts$/ },
+    {
+      name: "desktop",
+      testIgnore: /[\\/]unit[\\/]/,
+      use: { viewport: { width: 1440, height: 1000 } },
+    },
+    {
+      name: "tablet",
+      testIgnore: /[\\/]unit[\\/]/,
+      use: { viewport: { width: 820, height: 1180 } },
+    },
     {
       name: "phone",
+      testIgnore: /[\\/]unit[\\/]/,
       use: {
         viewport: { width: 390, height: 844 },
         isMobile: true,

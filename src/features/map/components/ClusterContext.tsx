@@ -1,7 +1,8 @@
 import { useId } from "react"
-import { Badge, DisclosurePanel } from "@/shared/components"
+import { Badge, DisclosurePanel, HelpTooltip } from "@/shared/components"
 import type { Cluster } from "../types"
 import { HistoricalContext } from "./HistoricalContext"
+import { mapHelp } from "../helpText"
 
 export function ClusterContext({ cluster }: { cluster: Cluster }) {
   const titleId = useId()
@@ -16,7 +17,10 @@ export function ClusterContext({ cluster }: { cluster: Cluster }) {
       : "No summary was saved for this cluster."
   return (
     <section aria-labelledby={titleId} className="min-w-0 rounded-xl border border-suite-line bg-white p-4">
-      <h2 id={titleId} className="text-[15px] font-bold">Cluster context</h2>
+      <div className="flex items-center gap-1">
+        <h2 id={titleId} className="text-[15px] font-bold">Cluster context</h2>
+        <HelpTooltip label="Cluster context">{mapHelp.clusterContext}</HelpTooltip>
+      </div>
       <p className="mt-1 text-xs text-suite-muted">{help}</p>
       <div className="mt-3">
         <Badge tone={source === "current_analysis" ? "blue" : source === "historical" ? "amber" : "neutral"}>

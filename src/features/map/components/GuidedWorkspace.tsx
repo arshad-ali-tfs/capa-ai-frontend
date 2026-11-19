@@ -111,7 +111,7 @@ export function GuidedWorkspace({
           </div>
         </div>
       </aside>
-      <div className="flex min-w-0 flex-col gap-4">{children}</div>
+      <div className="map-workspace-content flex min-w-0 flex-col gap-4">{children}</div>
     </div>
   )
 }

@@ -1,20 +1,20 @@
-// Production static server and MAP-only server-side proxy.
+// Production static server and server-side proxy for the backend services.
 import http from "node:http"
 import https from "node:https"
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import {
+  findService,
+  resolveServices,
+  upstreamHeaders,
+  upstreamUrl,
+} from "./config/serverProxy.mjs"
 const project = path.dirname(fileURLToPath(import.meta.url))
 if (fs.existsSync(path.join(project, ".env")))
   process.loadEnvFile(path.join(project, ".env"))
 const root = path.resolve(project, "dist")
-const upstream = new URL(process.env.MAP_API_TARGET || "http://127.0.0.1:8101")
-if (
-  !["http:", "https:"].includes(upstream.protocol) ||
-  upstream.username ||
-  upstream.password
-)
-  throw new Error("MAP_API_TARGET must be an HTTP(S) URL without credentials.")
+const services = resolveServices(process.env)
 if (!fs.existsSync(path.join(root, "index.html")))
   throw new Error("Run npm run build first.")
 const mime = {
@@ -43,19 +43,17 @@ const server = http.createServer((request, response) => {
     return
   }
   const pathname = url.pathname
-  if (pathname === "/map/dataset" || pathname.startsWith("/api/v1/map/")) {
-    const target = new URL(upstream.href)
-    target.pathname = upstream.pathname.replace(/\/$/, "") + pathname
-    target.search = url.search
-    const headers = { accept: "application/json" }
-    if (request.headers["content-type"])
-      headers["content-type"] = request.headers["content-type"]
-    if (process.env.MAP_API_BEARER_TOKEN)
-      headers.authorization = "Bearer " + process.env.MAP_API_BEARER_TOKEN
+  const service = findService(pathname, services)
+  if (service) {
+    const target = upstreamUrl(service, pathname, url.search)
     const client = target.protocol === "https:" ? https : http
     const proxy = client.request(
       target,
-      { method: request.method, headers, timeout: 180000 },
+      {
+        method: request.method,
+        headers: upstreamHeaders(service, request.headers),
+        timeout: 180000,
+      },
       (result) => {
         response.writeHead(result.statusCode || 502, {
           "Content-Type": result.headers["content-type"] || "application/json",
@@ -65,11 +63,15 @@ const server = http.createServer((request, response) => {
       },
     )
     proxy.on("timeout", () =>
-      proxy.destroy(new Error("MAP request timed out.")),
+      proxy.destroy(new Error(service.label + " request timed out.")),
     )
     proxy.on("error", () => {
       if (!response.headersSent)
-        json(response, 502, "MAP is unavailable. Check the backend service.")
+        json(
+          response,
+          502,
+          service.label + " is unavailable. Check the backend service.",
+        )
       else response.destroy()
     })
     request.pipe(proxy)
@@ -116,6 +118,8 @@ const server = http.createServer((request, response) => {
   else fs.createReadStream(target).pipe(response)
 })
 const port = Number(process.env.DATABRICKS_APP_PORT || process.env.PORT || 8100)
-server.listen(port, process.env.FRONTEND_HOST || "127.0.0.1", () =>
-  console.log("CAPA.AI frontend listening on port " + port),
-)
+server.listen(port, process.env.FRONTEND_HOST || "127.0.0.1", () => {
+  console.log("CAPA.AI frontend listening on port " + port)
+  for (const service of services)
+    console.log("  " + service.label + " -> " + service.target.origin)
+})

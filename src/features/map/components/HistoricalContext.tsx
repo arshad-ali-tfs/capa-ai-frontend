@@ -1,3 +1,6 @@
+import { HelpLabel } from "@/shared/components"
+import { mapHelp } from "../helpText"
+
 // Historical exports sometimes append a semicolon-delimited four-field footer.
 // Format that known shape without paraphrasing the retained summary or values.
 export function HistoricalContext({ text, confidenceLabel = "Historical confidence label" }: { text: string; confidenceLabel?: string }) {
@@ -17,7 +20,9 @@ export function HistoricalContext({ text, confidenceLabel = "Historical confiden
         <dl className="space-y-3 border-t border-suite-line-soft pt-3">
           {fields.map(([label, value]) => (
             <div key={label}>
-              <dt className="text-xs font-bold text-suite-muted">{label}</dt>
+              <dt className="text-xs font-bold text-suite-muted">
+                <HelpLabel label={label}>{label === confidenceLabel ? mapHelp.confidence : label === "Primary center" ? mapHelp.primary : mapHelp.signals}</HelpLabel>
+              </dt>
               <dd className="mt-1 whitespace-pre-wrap">{value.trim()}</dd>
             </div>
           ))}

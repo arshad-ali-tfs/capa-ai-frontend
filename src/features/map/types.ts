@@ -103,6 +103,7 @@ export interface MapRun {
 export interface MapDataset {
   clusters: Cluster[]
   records: DeviationRecord[]
+  capas?: CapaRelationship[]
   months: string[]
   refreshedAt: string
   analysis: {
@@ -110,6 +111,8 @@ export interface MapDataset {
     recordCount: number
     sourceRecordCount: number | null
     snapshotId: string | null
+    resolvedSnapshotId?: string | null
+    sourceResolution?: "original_snapshot" | "verified_equivalent_export" | "unavailable"
     sourceAvailable: boolean
     sourceMode: string
     selection: "configured" | "latest_completed"

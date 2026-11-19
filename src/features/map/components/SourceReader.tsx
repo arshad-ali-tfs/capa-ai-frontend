@@ -1,7 +1,8 @@
 import { useId, useRef, useState, type RefObject } from "react"
-import { EmptyState } from "@/shared/components"
+import { EmptyState, HelpTooltip } from "@/shared/components"
 import { cx } from "@/shared/lib/classNames"
 import type { DeviationRecord } from "../types"
+import { mapHelp } from "../helpText"
 
 export function SourceReader({
   record,
@@ -59,7 +60,10 @@ export function SourceReader({
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 id={`${prefix}-title`} className="text-[15px] font-bold">Source narrative</h2>
+          <div className="flex items-center gap-1">
+            <h2 id={`${prefix}-title`} className="text-[15px] font-bold">Source narrative</h2>
+            <HelpTooltip label="Source narrative">{mapHelp.source}</HelpTooltip>
+          </div>
           <p className="mt-1 text-xs text-suite-muted">Original text, organised by source field.</p>
         </div>
         {sections.length > 0 && (

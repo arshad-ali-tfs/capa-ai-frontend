@@ -1,4 +1,4 @@
-import { requestJson } from "@/shared/api/httpClient"
+import { mapApi } from "@/shared/api/clients"
 import type { MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "../types"
 const invalid = () =>
   new Error(
@@ -51,6 +51,10 @@ export function validateDataset(value: unknown): MapDataset {
         analysis.sourceRecordCount < 0)) ||
     typeof analysis.sourceAvailable !== "boolean" ||
     typeof analysis.sourceMode !== "string" ||
+    (analysis.resolvedSnapshotId !== undefined &&
+      !(analysis.resolvedSnapshotId === null || typeof analysis.resolvedSnapshotId === "string")) ||
+    (analysis.sourceResolution !== undefined &&
+      !["original_snapshot", "verified_equivalent_export", "unavailable"].includes(analysis.sourceResolution)) ||
     !(
       analysis.snapshotId === null || typeof analysis.snapshotId === "string"
     ) ||
@@ -162,19 +166,30 @@ export function validateDataset(value: unknown): MapDataset {
   }
   for (const cluster of value.clusters)
     if (cluster.analysisContext && cluster.analysisContext.recordCount !== (clusterRecordCounts.get(cluster.id) || 0)) throw invalid()
+  // Older MAP services can still load, but cannot supply the overview CAPA KPI.
+  if (value.capas !== undefined) {
+    if (!Array.isArray(value.capas)) throw invalid()
+    const capaIds = new Set<string>()
+    for (const capa of value.capas) {
+      if (!object(capa) || !["id", "description", "status"].every(key => typeof capa[key] === "string") ||
+        !capa.id.trim() || capaIds.has(capa.id) || !strings(capa.recordIds) || !capa.recordIds.length ||
+        new Set(capa.recordIds).size !== capa.recordIds.length || !capa.recordIds.every(id => ids.has(id))) throw invalid()
+      capaIds.add(capa.id)
+    }
+  }
   return value as MapDataset
 }
 export const mapService = {
   loadDataset: async (signal?: AbortSignal, run = "") => {
     if (run && !/^[a-f0-9]{32}$/.test(run)) throw new Error("Invalid analysis run in the link.")
-    const value = validateDataset(await requestJson<unknown>(
+    const value = validateDataset(await mapApi.requestJson<unknown>(
       run ? `/api/v1/map/runs/${run}/dataset` : "/map/dataset", { signal },
     ))
     if (run && value.analysis.runId !== run) throw new Error("MAP returned a different analysis. Please retry.")
     return value
   },
   listRuns: async (signal?: AbortSignal): Promise<MapRun[]> => {
-    const value = await requestJson<unknown>("/api/v1/map/runs?limit=100000", { signal })
+    const value = await mapApi.requestJson<unknown>("/api/v1/map/runs?limit=100000", { signal })
     if (!object(value) || !Array.isArray(value.items)) throw invalid()
     const completed = value.items.filter((run: unknown) => object(run) && run.status === "completed")
     return completed.map((run: any) => {
@@ -191,7 +206,7 @@ export const mapService = {
     revision: number,
   ) =>
     validateAnnotation(
-      await requestJson<unknown>(
+      await mapApi.requestJson<unknown>(
         `/api/v1/map/runs/${encodeURIComponent(run)}/records/${encodeURIComponent(record)}/annotation`,
         {
           method: "PUT",

@@ -1,7 +1,11 @@
+import { useId } from "react"
+import { HelpTooltip } from "./HelpTooltip"
+
 export interface FilterField<K extends string> {
   key: K
   label: string
   options: string[]
+  tooltip?: string
 }
 
 export function FilterPanel<K extends string>({
@@ -11,6 +15,7 @@ export function FilterPanel<K extends string>({
   onClear,
   primaryCount = fields.length,
   resultLabel,
+  tooltip,
 }: {
   filters: Record<K, string>
   fields: FilterField<K>[]
@@ -18,12 +23,17 @@ export function FilterPanel<K extends string>({
   onClear: () => void
   primaryCount?: number
   resultLabel?: string
+  tooltip?: string
 }) {
   const id = useId()
   const renderField = (field: FilterField<K>) => (
-    <label key={field.key} className="flex min-w-0 flex-col gap-1 px-2 py-1">
-      <span className="text-xs font-bold">{field.label}</span>
+    <div key={field.key} className="flex min-w-0 flex-col gap-1 px-2 py-1">
+      <div className="flex min-h-6 items-center gap-1">
+        <label htmlFor={`${id}-${field.key}-select`} className="text-xs font-bold">{field.label}</label>
+        {field.tooltip && <HelpTooltip label={`${field.label} filter`}>{field.tooltip}</HelpTooltip>}
+      </div>
       <select
+        id={`${id}-${field.key}-select`}
         aria-label={field.label}
         value={filters[field.key]}
         disabled={!field.options.some((value) => !unavailable(value))}
@@ -53,7 +63,7 @@ export function FilterPanel<K extends string>({
           This field has no usable source values in this analysis.
         </span>
       )}
-    </label>
+    </div>
   )
   const primaryFields = fields.slice(0, primaryCount)
   const advancedFields = fields.slice(primaryCount)
@@ -63,7 +73,10 @@ export function FilterPanel<K extends string>({
     <section className="rounded-xl border border-suite-line bg-white p-3.5">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xs font-bold">Narrow this view</h2>
-        <p className="text-xs text-suite-muted">Filters work together</p>
+        <div className="flex items-center gap-1">
+          <p className="text-xs text-suite-muted">Filters work together</p>
+          {tooltip && <HelpTooltip label="Filters">{tooltip}</HelpTooltip>}
+        </div>
         <div className="flex-1" />
         {resultLabel && (
           <span className="rounded-full bg-suite-info-wash px-2.5 py-1 text-xs font-bold text-suite-blue">
@@ -118,7 +131,6 @@ export function FilterPanel<K extends string>({
     </section>
   )
 }
-import { useId } from "react"
 const unavailable = (value: string) =>
   !value.trim() ||
   ["not provided", "not available", "unavailable"].includes(value.toLowerCase())
