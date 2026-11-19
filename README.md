@@ -1,0 +1,229 @@
+# CAPA.AI | Common frontend
+
+**One browser interface for the CAPA.AI services, with MAP connected today.**
+
+This React application follows the supplied frontend design. Users can explore recurring deviation patterns, inspect cluster members, read original source fields and save reviewer annotations through the independent MAP backend.
+
+A deviation is a recorded departure from an expected process. CAPA means corrective and preventive action.
+
+| At a glance | Details |
+|---|---|
+| Stack | React 18, TypeScript, Vite and Tailwind CSS |
+| Runtime | Node.js 22 or later; npm |
+| Local address | http://127.0.0.1:8100 |
+| MAP workspace | http://127.0.0.1:8100/map |
+| Current integration | MAP on port 8101 |
+| MATCH / AUTHOR screens | Pending their frontend integration |
+
+[Architecture](#how-the-frontend-connects) / [Setup](#run-locally) / [Screens](#what-you-can-do-today) / [Configuration](#configuration) / [Troubleshooting](#troubleshooting) / [Deployment](#deployment)
+
+## Where this fits
+
+| Repository | Responsibility | Port |
+|---|---|---|
+| **This repository: common frontend** | Browser screens, navigation and API presentation | 8100 |
+| [MAP backend](https://github.com/rahul-jha-tfs/capa-ai-map-backend) | Analyses, clusters, source evidence and saved notes | 8101 |
+| [MATCH backend](https://github.com/rahul-jha-tfs/capa-ai-match-backend) | Similar-record search API | 8102 |
+| [AUTHOR backend](https://github.com/rahul-jha-tfs/capa-ai-author-backend) | Investigation and CAPA authoring API | 8103 |
+
+The backends are independent services using copies of the same versioned source export. The frontend reads MAP's API; it does not read the CSV/database directly or run models. MATCH and AUTHOR have separate backend APIs, but starting them does not add their screens here. Planned-module cards are visual placeholders from the supplied design.
+
+## How the frontend connects
+
+```mermaid
+flowchart LR
+    browser["Browser / React screens"] --> server["Frontend :8100<br/>Static assets + MAP proxy"]
+    server --> map["MAP API :8101"]
+    map --> source["Versioned source snapshot"]
+    map --> runs["Saved analyses and reviewer notes"]
+    classDef main fill:#fff1f2,stroke:#dc2626,color:#111827
+    class browser,server,map main
+```
+
+A **proxy** forwards an API request from the frontend server to MAP. The browser requests `/map/dataset` on port 8100; the server forwards it to MAP on 8101 and returns its response. Annotation reads/saves use the same path through `/api/v1/map/...`.
+
+The browser stays on one origin, with backend addressing and authentication handled by the server. `server.mjs` serves production assets and proxies MAP; Vite provides the MAP proxy in development. Model credentials belong in the backend, never in React's `VITE_*` variables.
+
+## Run locally
+
+Run commands from **this repository's root** unless another directory is stated. You need **Node.js 22+**, npm and a running MAP backend.
+
+### 1. Start MAP
+
+In the MAP backend repository, start its configured Docker service:
+
+```powershell
+# Prepare and start MAP without submitting a new paid analysis.
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Run-Map.ps1 -ServeOnly
+```
+
+The launcher handles fresh Docker setup and source/model checks. MAP needs a source snapshot and completed analysis to display. To reuse existing results without another paid run, restore the corresponding saved run folders and source snapshots under the backend data directory before starting. For a new analysis, follow the pipeline options in the backend README. A fresh backend clone does not include this workstation's saved results; follow the [MAP setup guide](https://github.com/rahul-jha-tfs/capa-ai-map-backend#run-locally).
+
+### 2. Install and run the frontend
+
+For a fresh checkout:
+
+```powershell
+git clone https://github.com/rahul-jha-tfs/capa-ai-frontend.git
+cd capa-ai-frontend
+npm ci
+npm run build
+npm run start
+```
+
+Skip cloning if the folder already exists. Open **http://127.0.0.1:8100/map**. Keep the frontend terminal open; stop it with **Ctrl+C**. MAP runs in a detached Docker container and stays running after its setup terminal closes.
+
+When dependencies and `dist` already exist, only `npm run start` is needed. Rebuild after source changes. Starting backend containers does not also start this Node server.
+
+### 3. Develop with live reload
+
+Use this instead of `npm run start`:
+
+```powershell
+npm run dev
+```
+
+Development also uses port 8100. Run one frontend server at a time. MATCH and AUTHOR do not need to run for the current MAP screens.
+
+### Check the connection
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8100/map/dataset"
+```
+
+A successful response contains `analysis`, `clusters` and `records`. Coverage figures describe the selected saved analysis; they are not application limits, and the UI does not imply that every source record was analysed.
+
+Use **Analysis run** above the MAP workspace to open a previous completed result. Options show the record count, date and run ID; synthetic analyses are marked **Test**. The selected run is kept in the URL while navigating, filtering and reloading. Choosing **Latest analysis** returns to the backend's default result. Save or discard reviewer edits before switching; annotations stay attached to their original run.
+
+## What you can do today
+
+```mermaid
+flowchart LR
+    overview["1. Select a cluster"] --> detail["2. Inspect records"]
+    detail --> evidence["3. Review evidence"]
+    evidence --> note["Save an assessment and note"]
+    classDef main fill:#fff1f2,stroke:#dc2626,color:#111827
+    class overview,detail,evidence main
+```
+
+| Area | Available behavior |
+|---|---|
+| Home | Supplied shell and module entry points |
+| Overview | Cluster table, filters, charts and analysis coverage |
+| Cluster detail | Member records, source dimensions, historical context and explicit CAPA relationships |
+| Evidence review | Original source fields, saved 5W1H extraction, matching context and reviewer notes |
+| Navigation | Filters retained in URLs; consistent guided investigation across screens |
+| Review | Saved assessments/notes with revision and conflict checks |
+| Responsive layout | Desktop, tablet and phone layouts with source/review navigation |
+| Refresh | Manual refresh plus checks every minute and when returning to the app |
+
+Source text retains its original content and line breaks, using explicit backend field boundaries. Headings inside a narrative do not create new source fields. Older API responses remain readable as complete source text.
+
+Unsaved notes pause refresh and prompt before leaving. Failed refreshes keep the previous valid dataset visible. Saving an annotation does not approve a cluster summary, reassign a record or update TrackWise.
+
+### Understand the numbers
+
+- **Deviations:** records in the current filtered analysis.
+- **Major/Critical:** share whose source criticality is Major or Critical, using the current filtered records; the UI does not predict severity.
+- **Similarity:** average of available record-level similarities within the group/filter, not clustering accuracy or a probability of correctness.
+- **Source coverage:** analysed record count compared with the available imported source.
+
+The application loads API data. Fictional browser-test fixtures live under `tests/`; they are not an application fallback. Missing data is shown as unavailable. Saved analysis selection is available above the MAP workspace. MATCH/AUTHOR workflows are pending their frontend integration.
+
+## Configuration
+
+Defaults work with a native or Docker MAP backend published on host port 8101. For a different target, create local `.env` from [.env.example](.env.example), if absent, and edit:
+
+```dotenv
+MAP_API_TARGET=http://127.0.0.1:8101
+PORT=8100
+```
+
+Restart after changing server configuration.
+
+| Setting | Purpose |
+|---|---|
+| `MAP_API_TARGET` | Server-side MAP address, in production server and Vite proxy |
+| `MAP_API_BEARER_TOKEN` | Optional server-side token for that upstream |
+| `PORT` | `npm run start` port; default 8100 |
+| `FRONTEND_HOST` | Production bind address; default `127.0.0.1` |
+| `DATABRICKS_APP_PORT` | Deployment-provided port; takes priority over `PORT` |
+| `VITE_API_BASE_URL` | Optional browser API-base override at build time; normally leave unset and use the proxy |
+
+Vite development/preview uses port 8100 from `vite.config.mjs`; `PORT` controls the production Node server. If MAP uses Docker host port 18101, set `MAP_API_TARGET=http://127.0.0.1:18101`.
+
+This repo currently has **no Dockerfile**. The three backend images are separate from this Node build/server.
+
+## API contract and saved reviews
+
+| Request through the frontend | Purpose |
+|---|---|
+| `GET /map/dataset` | Default analysis, clusters, records, source sections, saved 5W1H and annotations |
+| `GET /api/v1/map/runs?limit=100000` | List saved analyses for the run selector |
+| `GET /api/v1/map/runs/{run_id}/dataset` | Load the selected analysis and its own saved outputs |
+| `GET /api/v1/map/runs/{run_id}/annotations` | Read saved record annotations |
+| `PUT /api/v1/map/runs/{run_id}/records/{record_id}/annotation` | Save `assessment`, `note` and `expected_revision` |
+
+The API service validates the dataset shape before displaying it. HTTP **409** means a saved annotation revision changed; reload the latest version before retrying. Notes live in the MAP backend's `record_annotations.json` under its persistent run folder, not solely in this browser or repository.
+
+The proxy forwards MAP routes only; it is not a gateway for all three backends. Full schemas are in the running [MAP API docs](http://127.0.0.1:8101/docs).
+
+## Find your way around
+
+```text
+src/app/                   Shell, route parsing and navigation
+src/features/landing/      Home/module-entry screen
+src/features/map/          Screens, data provider, filters and review state
+  components/              Source reader, tables, guided steps and review panels
+  services/mapService.ts   HTTP calls and response validation
+src/shared/                Reusable UI, helpers and HTTP client
+public/                    Static assets
+server.mjs                 Production static server and MAP-only proxy
+vite.config.mjs            Development/preview proxy and build setup
+tests/                     Browser checks and fictional fixtures
+dist/                      Generated build; not committed
+```
+
+## Verify your changes
+
+```powershell
+npm run typecheck
+npm run build
+npx playwright install chromium
+npm test
+```
+
+Default browser checks use fictional API fixtures across desktop, tablet and phone layouts. Tests start or reuse the local frontend server. To run applicable checks with a real MAP backend:
+
+```powershell
+$env:MAP_REAL_DATA = '1'
+npm test
+Remove-Item Env:MAP_REAL_DATA
+```
+
+[VERIFICATION.md](VERIFICATION.md) records the checks, screenshots and skipped-test boundaries. Display tests do not establish model accuracy. Docker MAP-to-frontend HTTP connectivity was also verified without changing the proxy configuration.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| Node/npm unavailable | Install Node.js 22+ and reopen the terminal |
+| `Run npm run build first` | `npm run start` serves `dist`; build before starting |
+| MAP unavailable / HTTP 502 | Start MAP, test its `/api/v1/map/health`, check `MAP_API_TARGET` |
+| API responds but dataset is unavailable | MAP needs a completed analysis and matching source snapshot |
+| Source changes do not appear | Rebuild `dist`, or use `npm run dev` while editing |
+| Port 8100 occupied | Stop the existing frontend server; Vite uses a strict port |
+| Save fails with 409 | Another save changed its revision; refresh before retrying |
+| No MATCH/AUTHOR pages | Those UI integrations are pending; starting their APIs does not add screens |
+
+## Deployment
+
+The frontend deploys separately from the backends. [DEPLOYMENT.md](DEPLOYMENT.md) describes Databricks Apps preparation and the `app.yaml` start command.
+
+Build static assets, run the Node server, configure `MAP_API_TARGET` for the deployed MAP URL, and establish server-side app-to-app permissions/authentication. The bearer-token setting does not itself acquire or renew production tokens. Keep model keys in the backend. Local MAP integration is verified; Databricks deployment needs target-workspace checks.
+
+MAP review warnings come from the backend. Close scores do not trigger Needs review. Missing historical names or descriptions appear once on the cluster detail screen using the cluster's `warnings` array; they do not flag individual records or increase record review counts. Record warnings, including unavailable assignments, remain on the relevant evidence screen. Viewing a warning does not make an LLM call.
+
+The record review screen includes a 5W1H extraction panel below the source narrative. It shows the six saved AI output categories for the selected record and analysis. Unavailable categories are labelled clearly. This reads existing results without rerunning the pipeline or calling the model.
+
+Cluster context shows the saved AI summary for the selected analysis, with a separate expandable historical reference where available. The summary covers all records in that saved cluster; changing filters does not regenerate it. Historical cluster names stay stable, with the saved analysis title used when a historical name is missing. Summaries and confidence labels remain AI output for review, not measured accuracy or approved historical definitions. Older results without a saved analysis summary fall back explicitly to the historical reference or an unavailable state.
