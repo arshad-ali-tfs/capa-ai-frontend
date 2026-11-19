@@ -8,13 +8,16 @@ const project = path.dirname(fileURLToPath(import.meta.url))
 if (fs.existsSync(path.join(project, ".env")))
   process.loadEnvFile(path.join(project, ".env"))
 const root = path.resolve(project, "dist")
-const upstream = new URL(process.env.MAP_API_TARGET || "http://127.0.0.1:8101")
-if (
-  !["http:", "https:"].includes(upstream.protocol) ||
-  upstream.username ||
-  upstream.password
-)
-  throw new Error("MAP_API_TARGET must be an HTTP(S) URL without credentials.")
+function httpUrl(value, variableName) {
+  const raw = String(value || "").trim()
+  if (!raw) throw new Error(`${variableName} must be configured.`)
+  const normalized = /^[a-z][a-z\d+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`
+  const url = new URL(normalized)
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
+    throw new Error(`${variableName} must be an HTTP(S) URL without credentials.`)
+  return url
+}
+const upstream = httpUrl(process.env.MAP_API_TARGET || "http://127.0.0.1:8101", "MAP_API_TARGET")
 if (!fs.existsSync(path.join(root, "index.html")))
   throw new Error("Run npm run build first.")
 let databricksToken = ""
@@ -25,7 +28,8 @@ async function mapBearerToken() {
   const configuredToken = process.env.MAP_API_BEARER_TOKEN?.trim()
   if (configuredToken) return configuredToken
 
-  const host = process.env.DATABRICKS_HOST?.trim()
+  const rawHost = process.env.DATABRICKS_HOST?.trim()
+  const host = rawHost ? httpUrl(rawHost, "DATABRICKS_HOST").origin : ""
   const clientId = process.env.DATABRICKS_CLIENT_ID?.trim()
   const clientSecret = process.env.DATABRICKS_CLIENT_SECRET?.trim()
   if (!host || !clientId || !clientSecret) {
