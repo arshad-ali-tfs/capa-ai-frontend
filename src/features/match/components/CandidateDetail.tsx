@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react"
 import { Badge, EmptyState } from "@/shared/components"
 import type { DetailState, MatchRow, RecordDetail } from "../types"
 import { criticalityTone, siteLine, statusTone } from "../utils"
+import { HighlightedText } from "./HighlightedText"
+import { modeLabel } from "../searchModel"
 
 export function CandidateDetail({ selected, detailState, detailError, recordDetail, onRetry }: {
   selected: MatchRow | undefined
@@ -26,6 +28,8 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
             <p className="text-[10px] font-bold tracking-wide text-suite-muted uppercase">Selected deviation</p>
             <h2 ref={heading} tabIndex={-1} className="mt-1 rounded-sm text-lg font-bold text-brand focus-visible:outline-2 focus-visible:outline-brand">{selected.deviationId}</h2>
             <p className="mt-1 text-[11px] text-suite-muted">{siteLine(selected)}</p>
+            {selected.recordName && <p className="mt-2 text-sm font-bold [overflow-wrap:anywhere]">{selected.recordName}</p>}
+            {(selected.drType || selected.department) && <p className="mt-2 text-xs leading-5 text-suite-muted">{[selected.drType, selected.department].filter(Boolean).join(" · ")}</p>}
             <button type="button" className="map-secondary mt-3 text-xs! xl:hidden" onClick={() => {
               const results = document.getElementById("match-results")
               results?.scrollIntoView({ block: "start", behavior: "instant" })
@@ -37,8 +41,9 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
               {selected.criticality && <Badge tone={criticalityTone(selected.criticality)}>{selected.criticality}</Badge>}
               {selected.status && <Badge tone={statusTone(selected.status)}>{selected.status}</Badge>}
             </div>
-            <p className="mt-3 text-[11px] font-bold text-suite-blue">MATCHED EXCERPT · {selected.matchedField || "Indexed text"}</p>
-            <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed [overflow-wrap:anywhere]">{selected.excerpt}</p>
+            <p className="mt-3 text-[11px] font-bold text-suite-blue">{modeLabel[selected.matchKind]} · {selected.matchedField || "Indexed text"}</p>
+            <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed [overflow-wrap:anywhere]"><HighlightedText text={selected.excerpt} spans={selected.spans} /></p>
+            {selected.reasons.length > 0 && <ul aria-label="Why this record appears" className="mt-3 list-inside list-disc space-y-1 text-xs leading-5 text-suite-blue">{selected.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
           </div>
           {detailState === "loading" && <p className="mt-4 text-xs text-suite-muted" role="status" aria-busy="true">Loading source and CAPA details…</p>}
           {detailState === "error" && (
@@ -50,12 +55,16 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
           )}
           {detailState === "success" && recordDetail && <>
             <div className="mt-4 border-t border-suite-line-soft pt-4">
-              <h3 className="text-sm font-bold">Indexed source text</h3>
-              <p className="mt-1 text-[11px] text-suite-muted">Fields retained in this search index. Verify the complete record in the QMS.</p>
-              {recordDetail.sections.length ? (
+              <h3 className="text-sm font-bold">Retained source text</h3>
+              <p className="mt-1 text-[11px] text-suite-muted">Indexed fields and any additional investigation text from the same source snapshot. Investigation text is included in literal searches. Verify the complete record in the QMS.</p>
+              {recordDetail.sections.length || recordDetail.literalSections?.length ? (
                 <div role="region" aria-label="Selected source narrative" tabIndex={0} className="mt-3 max-h-[55dvh] space-y-4 overflow-y-auto rounded-lg border border-suite-line-soft p-3 outline-none focus-visible:ring-2 focus-visible:ring-brand">
                   {recordDetail.sections.map(section => <section key={section.label}>
                     <h4 className="text-xs font-bold">{section.label}</h4>
+                    <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed [overflow-wrap:anywhere]">{section.text}</p>
+                  </section>)}
+                  {recordDetail.literalSections?.map(section => <section key={`literal:${section.label}`}>
+                    <h4 className="text-xs font-bold">{section.label} <span className="ml-1 rounded bg-suite-info-wash px-1.5 py-0.5 text-[10px] font-normal text-suite-blue">Literal search</span></h4>
                     <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed [overflow-wrap:anywhere]">{section.text}</p>
                   </section>)}
                 </div>

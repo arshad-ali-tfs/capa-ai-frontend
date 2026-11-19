@@ -55,10 +55,17 @@ Enter 8–30,000 characters, choose one allowed site or all allowed sites, and r
 | Operation | Contract |
 |---|---|
 | `GET /api/v1/match/index` | Searchable coverage, allowed sites, source identity and mock-embedding flag |
-| `POST /api/v1/match/search` | `{query, site, top_k}` or `{query, all_sites: true, top_k}`; returns `results` |
+| `POST /api/v1/match/facets` | Site scope + structured filters; authorized choices and counts |
+| `POST /api/v1/match/search` | Query (optional), site scope, explicit mode, filters, limit and optional page offset |
 | `GET /api/v1/match/matched-records/{pr_id}?site=...` | Exact source ID and site; returns indexed fields and `related_capas` |
 
 The API does not expose a refresh timestamp, so the screen reports index coverage. Details must match the selected source ID, site and snapshot. Missing CAPA links do not establish whether a CAPA is required or exists elsewhere.
+
+The experimental branch `codex/match-search-experiments-20261119` requires the same MATCH backend branch. It adds site, multiple opened years, criticality, DR type, department, inclusive opened dates and CAPA-link filters. Multiple values within a field mean OR; different fields mean AND. Counts update before applying a search. Blank input browses filtered history with pagination; changing the form preserves and labels the previously submitted results until applied.
+
+Smart mode detects deviation IDs, short equipment/document references and keywords; unknown IDs do not fall back to unrelated records. Keywords require all terms, Exact phrase preserves a phrase, and Meaning supports related descriptions without hard identifier requirements. Literal matches inspect description, conclusion, recorded title and available investigation text from the matching snapshot. Evidence highlights and source-field labels explain each match. Investigation text is explicitly labelled as literal-search evidence rather than semantic-index content. Numeric-only Smart input means deviation ID; select Keywords to find numeric references in source text.
+
+Experimental Relevance score also compares the recorded event title with the query; the tooltip explains the weights. It prioritizes review, not correctness or recurrence probability. Browse and literal results show counts without fabricated scores. Model warm-up, service errors, empty results, stale requests and source-version mismatches are handled explicitly. The existing backend's original narrative contract remains available to AUTHOR.
 
 ## Run locally
 

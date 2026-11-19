@@ -1,9 +1,11 @@
 import { test, expect, type Page } from "@playwright/test"
 import fs from "node:fs"
 import { details, index, rows, searchResponse, sites } from "./fixtures/match-dataset"
+import { filterResponse } from "./fixtures/match-explorer"
 
 async function mockMatch(page: Page, calls: unknown[] = []) {
   await page.route("**/api/v1/match/index", route => route.fulfill({ json: index }))
+  await page.route("**/api/v1/match/facets", route => route.fulfill({ json: filterResponse(route.request().postDataJSON()) }))
   await page.route("**/api/v1/match/search", route => {
     const body = route.request().postDataJSON()
     calls.push(body)
@@ -16,7 +18,7 @@ async function mockMatch(page: Page, calls: unknown[] = []) {
     return record ? route.fulfill({ json: record }) : route.fulfill({ status: 404, json: { detail: "Record not found" } })
   })
 }
-const searchBox = (page: Page) => page.getByRole("textbox", { name: "Deviation description", exact: true })
+const searchBox = (page: Page) => page.getByRole("textbox", { name: "Search history", exact: true })
 const resultList = (page: Page) => page.getByRole("region", { name: "Search results", exact: true })
 const detailPanel = (page: Page) => page.getByRole("complementary", { name: "Selected deviation", exact: true })
 async function search(page: Page, query = "plate alert") {
@@ -30,8 +32,8 @@ test("opens from navigation and reports actual index coverage", async ({ page })
   await page.getByRole("link", { name: "Open MATCH", exact: true }).click()
   await expect(page).toHaveURL(/\/match$/)
   await expect(page.getByText("3 searchable deviations · 2 allowed sites")).toBeVisible()
-  await expect(page.getByText("Start with a deviation description")).toBeVisible()
-  await expect(page.getByRole("button", { name: "Search", exact: true })).toBeDisabled()
+  await expect(page.getByText("Search for precedent or browse filtered history")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Browse records", exact: true })).toBeEnabled()
   await expect(page.getByRole("navigation", { name: "CAPA.AI modules" }).getByRole("link")).toHaveText(["Home", "MAP", "MATCH"])
 })
 
@@ -41,7 +43,7 @@ test("searches within an explicit scope and opens the selected record with CAPA 
   await page.goto("/match")
   await search(page, "  settle plate alert  ")
   await expect(page.getByText("2 matches returned")).toBeVisible()
-  expect(calls).toEqual([{ query: "settle plate alert", all_sites: true, top_k: 10 }])
+  expect(calls).toEqual([{ query: "settle plate alert", all_sites: true, top_k: 10, mode: "auto" }])
   const candidates = resultList(page).locator('button[aria-pressed="false"]')
   await expect(candidates).toHaveCount(2)
   await expect(candidates.first()).toContainText("18 Sep 2026")
@@ -61,15 +63,17 @@ test("single-site search retains exact site and requested result limit", async (
   await page.getByRole("combobox", { name: "Maximum results", exact: true }).selectOption("50")
   await search(page)
   await expect(page.getByText("1 match returned", { exact: true })).toBeVisible()
-  expect(calls).toEqual([{ query: "plate alert", site: sites[1], top_k: 50 }])
+  expect(calls).toEqual([{ query: "plate alert", site: sites[1], top_k: 50, mode: "auto" }])
   await expect(resultList(page)).toContainText(sites[1])
   await expect(resultList(page)).not.toContainText(sites[0])
 })
 
-test("validates minimum input and supports Ctrl+Enter", async ({ page }) => {
+test("supports short keywords, rejects punctuation-only input and supports Ctrl+Enter", async ({ page }) => {
   await page.goto("/match")
-  await searchBox(page).fill("short")
+  await searchBox(page).fill("???")
   await expect(page.getByRole("button", { name: "Search", exact: true })).toBeDisabled()
+  await searchBox(page).fill("HPLC")
+  await expect(page.getByRole("button", { name: "Search", exact: true })).toBeEnabled()
   await expect(searchBox(page)).toHaveAttribute("maxlength", "30000")
   await searchBox(page).fill("plate alert")
   await searchBox(page).press("Control+Enter")

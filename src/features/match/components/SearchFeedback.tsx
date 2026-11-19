@@ -1,24 +1,26 @@
 import { EmptyState } from "@/shared/components"
-import type { SearchState } from "../types"
+import type { SearchResult, SearchState } from "../types"
 
 export function SearchFeedback({
   state,
   errorMessage,
   onRetry,
+  result,
 }: {
   state: SearchState
   errorMessage: string
   onRetry: () => void
+  result: SearchResult | null
 }) {
   if (state === "idle") {
     return (
       <section className="rounded-xl border border-dashed border-suite-line-field bg-white px-5 py-12 text-center">
         <p className="text-base font-bold">
-          Start with a deviation description
+          Search for precedent or browse filtered history
         </p>
         <p className="mx-auto mt-2 max-w-xl text-[13px] leading-relaxed text-suite-muted">
-          Search returns a ranked list of similar historical deviations. Select
-          a candidate to review its indexed source text and any available CAPA context.
+          Enter a deviation ID, equipment identifier, a few keywords or a description of the issue.
+          You can also leave the search empty and browse using the filters above.
         </p>
       </section>
     )
@@ -46,7 +48,13 @@ export function SearchFeedback({
 
   if (state === "empty") {
     return (
-      <EmptyState message="No historical deviations matched this search. Revise the description and try again." />
+      <section className="rounded-xl border border-suite-line bg-white p-5">
+        <EmptyState message={result?.eligibleCount === 0 ? "No indexed deviations meet the submitted filters. Adjust or clear a filter and try again."
+          : result?.searchMode === "identifier" || result?.searchMode === "record_id" || !!result?.requiredIdentifiers.length ? "No exact identifier match was found within the submitted filters. Check the ID and site scope, or adjust the filters."
+          : "No historical deviations matched this search. Adjust the keywords or filters, or try Meaning mode for related wording."} />
+        {result && <p className="mt-3 text-xs leading-5 text-suite-muted">{result.scope}{result.eligibleCount !== null ? ` · ${result.eligibleCount.toLocaleString()} deviations within submitted filters` : ""}. Search covers retained index fields. A missing result does not establish that no related event exists in the QMS.</p>}
+        {!!result?.requiredIdentifiers.length && <p className="mt-2 text-xs font-bold text-suite-blue">Required identifiers: {result.requiredIdentifiers.join(", ")}</p>}
+      </section>
     )
   }
 
