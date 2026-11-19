@@ -17,6 +17,49 @@ if (
   throw new Error("MAP_API_TARGET must be an HTTP(S) URL without credentials.")
 if (!fs.existsSync(path.join(root, "index.html")))
   throw new Error("Run npm run build first.")
+let databricksToken = ""
+let databricksTokenExpiresAt = 0
+let pendingTokenRequest = null
+
+async function mapBearerToken() {
+  const configuredToken = process.env.MAP_API_BEARER_TOKEN?.trim()
+  if (configuredToken) return configuredToken
+
+  const host = process.env.DATABRICKS_HOST?.trim()
+  const clientId = process.env.DATABRICKS_CLIENT_ID?.trim()
+  const clientSecret = process.env.DATABRICKS_CLIENT_SECRET?.trim()
+  if (!host || !clientId || !clientSecret) {
+    if (process.env.DATABRICKS_APP_NAME)
+      throw new Error("Databricks app OAuth credentials are unavailable.")
+    return ""
+  }
+
+  if (databricksToken && Date.now() < databricksTokenExpiresAt - 60_000)
+    return databricksToken
+  if (!pendingTokenRequest) {
+    pendingTokenRequest = (async () => {
+      const tokenUrl = new URL("/oidc/v1/token", host)
+      const response = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
+          "content-type": "application/x-www-form-urlencoded",
+          accept: "application/json",
+        },
+        body: new URLSearchParams({ grant_type: "client_credentials", scope: "all-apis" }),
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (!response.ok) throw new Error(`Databricks OAuth token request failed (${response.status}).`)
+      const token = await response.json()
+      if (typeof token.access_token !== "string" || !Number.isFinite(token.expires_in))
+        throw new Error("Databricks OAuth returned an invalid token response.")
+      databricksToken = token.access_token
+      databricksTokenExpiresAt = Date.now() + token.expires_in * 1000
+      return databricksToken
+    })().finally(() => { pendingTokenRequest = null })
+  }
+  return pendingTokenRequest
+}
 const mime = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -34,7 +77,7 @@ function json(response, status, detail) {
   })
   response.end(JSON.stringify({ detail }))
 }
-const server = http.createServer((request, response) => {
+const server = http.createServer(async (request, response) => {
   let url
   try {
     url = new URL(request.url, "http://localhost")
@@ -50,8 +93,14 @@ const server = http.createServer((request, response) => {
     const headers = { accept: "application/json" }
     if (request.headers["content-type"])
       headers["content-type"] = request.headers["content-type"]
-    if (process.env.MAP_API_BEARER_TOKEN)
-      headers.authorization = "Bearer " + process.env.MAP_API_BEARER_TOKEN
+    try {
+      const bearer = await mapBearerToken()
+      if (bearer) headers.authorization = "Bearer " + bearer
+    } catch (error) {
+      console.error("MAP OAuth authentication failed:", error.message)
+      json(response, 502, "MAP authentication is unavailable. Check the frontend app's Databricks identity and MAP app permission.")
+      return
+    }
     const client = target.protocol === "https:" ? https : http
     const proxy = client.request(
       target,
