@@ -10,7 +10,7 @@ export function ClusterContext({ cluster }: { cluster: Cluster }) {
   const source = cluster.contextSource ?? "historical"
   const current = cluster.analysisContext, historical = cluster.historicalContext
   const count = current?.recordCount
-  const help = source === "current_analysis"
+  const help = cluster.membershipChanged ? "Membership has changed through reviewer decisions. This saved AI context describes the original members and has not been regenerated." : source === "current_analysis"
     ? `Based on all ${count?.toLocaleString()} ${count === 1 ? "record" : "records"} in this cluster for the selected analysis. Filters do not rewrite this summary.`
     : source === "historical"
       ? "Historical reference summary; unchanged by the analysis filters."
@@ -22,6 +22,7 @@ export function ClusterContext({ cluster }: { cluster: Cluster }) {
         <HelpTooltip label="Cluster context">{mapHelp.clusterContext}</HelpTooltip>
       </div>
       <p className="mt-1 text-xs text-suite-muted">{help}</p>
+      <p className="mt-2 text-xs font-bold text-suite-blue">{cluster.titleSource==="reviewed"?"Reviewer label":cluster.titleSource==="current_analysis"?"Analysis-specific title · awaiting review":"Historical reference title"}{cluster.parentTheme?` · ${cluster.parentTheme}`:""}</p>
       <div className="mt-3">
         <Badge tone={source === "current_analysis" ? "blue" : source === "historical" ? "amber" : "neutral"}>
           {source === "current_analysis" ? "AI summary for this analysis" : source === "historical" ? "Historical analytical summary" : "Summary unavailable"}

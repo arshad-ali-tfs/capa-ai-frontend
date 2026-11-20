@@ -1,10 +1,12 @@
 import type { MouseEvent } from "react"
 
 let guard: ((path: string) => boolean) | null = null
+const additionalGuards = new Set<(path:string)=>boolean>()
+export function addNavigationGuard(value:(path:string)=>boolean) { additionalGuards.add(value); return ()=>{additionalGuards.delete(value)} }
 export function setNavigationGuard(value: typeof guard) {
   guard = value
 }
-export const canNavigate = (path: string) => !guard || guard(path)
+export const canNavigate = (path: string) => (!guard || guard(path)) && [...additionalGuards].every(check=>check(path))
 export function routeHref(path: string) {
   return path.startsWith("/map") &&
     !path.includes("?") &&

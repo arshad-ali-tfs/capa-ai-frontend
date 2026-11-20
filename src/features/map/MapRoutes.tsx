@@ -61,6 +61,8 @@ function MapRouteContent({ route }: { route: MapRoute }) {
   function update(next: typeof filters) {
     setFilters(next)
     const params = new URLSearchParams()
+    const current=new URLSearchParams(window.location.search)
+    for(const key of ["theme","review","sort","clusterView"]) if(current.has(key))params.set(key,current.get(key)!)
     if (selectedRun) params.set("run", selectedRun)
     for (const [key, value] of Object.entries(next))
       if (value !== "All") params.set(key, value)
@@ -82,7 +84,7 @@ function MapRouteContent({ route }: { route: MapRoute }) {
           (r) =>
             r.id === route.recordId &&
             (route.type === "record"
-              ? !r.clusterId
+              ? true
               : r.clusterId === route.clusterId),
         )
       : undefined
@@ -107,7 +109,7 @@ function MapRouteContent({ route }: { route: MapRoute }) {
     return (
       <EvidenceReviewScreen
         key={record.id}
-        cluster={cluster}
+        cluster={route.type==="record"?clusters.find(item=>item.id===record.clusterId):cluster}
         record={record}
         filters={filters}
         draft={review.drafts[record.id] ?? record.annotation}

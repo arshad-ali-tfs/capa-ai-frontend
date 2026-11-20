@@ -156,22 +156,22 @@ test("overview KPIs use filtered deviations, show the requested breakdowns and r
   await expect(severity("Major")).toHaveText(/^1\s*50\.0%$/)
   await expect(severity("Minor")).toHaveText(/^0\s*0\.0%$/)
   await expect(severity("Critical")).toHaveText(/^1\s*50\.0%$/)
-  await expect(metric(page, "Top DR type")).toContainText("Product Deviation")
-  await expect(metric(page, "Top DR type")).toContainText("2 of 2 deviations (100.0%)")
-  await expect(metric(page, "CAPA implemented")).toContainText("1 / 2")
-  await expect(metric(page, "CAPA implemented")).toContainText("50.0%")
+  await expect(metric(page, "Top DR types")).toContainText("Product Deviation")
+  await expect(metric(page, "Top DR types")).toContainText("Top 1 combined · 2 of 2 deviations")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("2 / 3")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("66.7%")
   for (const label of ["Average cluster similarity", "Top 5 share", "Open cluster"]) {
     await expect(page.getByText(label, { exact: true })).toHaveCount(0)
   }
   await page.getByRole("button", { name: "Clear all", exact: true }).click()
   await expect(metric(page, "Criticality")).toContainText("Out of 3 deviations")
-  await expect(metric(page, "Top DR type")).toContainText("2 of 3 deviations (66.7%)")
-  await expect(metric(page, "CAPA implemented")).toContainText("1 / 3")
+  await expect(metric(page, "Top DR types")).toContainText("Top 2 combined · 3 of 3 deviations")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("2 / 3")
   value.records.forEach((r: any) => (r.similarity = null))
   value.clusters.forEach((c: any) => (c.match = null))
   value.analysis.sourceAvailable = false
   await page.getByRole("button", { name: "Refresh data", exact: true }).click()
-  await expect(metric(page, "CAPA implemented")).toContainText("Not available")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("Not available")
   await noOverflow(page)
 })
 
@@ -189,15 +189,15 @@ test("overview KPIs explain ties and unknown classifications and count unassigne
   await mock(page, value)
   await page.goto("/map")
   await expect(metric(page, "Criticality")).toContainText(/Other \/ unknown:\s*2 \(66\.7%\)/)
-  await expect(metric(page, "Top DR type")).toContainText("2 types tied")
-  await expect(metric(page, "Top DR type")).toContainText("1 of 3 deviations each (33.3%) · 1 unknown")
-  await expect(metric(page, "CAPA implemented")).toContainText("1 / 3")
-  await page.getByRole("button", { name: "About Top DR type", exact: true }).click()
-  await expect(page.getByRole("tooltip")).toContainText("Tied types: Product Deviation, Site Deviation")
+  await expect(metric(page, "Top DR types")).toContainText("Top 2 combined")
+  await expect(metric(page, "Top DR types")).toContainText("Top 2 combined · 2 of 3 deviations · 1 unknown")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("1 / 1")
+  await page.getByRole("button", { name: "About Top DR types", exact: true }).click()
+  await expect(page.getByRole("tooltip")).toContainText("Top three known deviation record types")
   await page.keyboard.press("Escape")
   await page.getByRole("combobox", { name: "Criticality", exact: true }).selectOption("Not provided")
   await expect(metric(page, "Criticality")).toContainText(/Other \/ unknown:\s*1 \(100\.0%\)/)
-  await expect(metric(page, "CAPA implemented")).toContainText("0 / 1")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("0 / 0")
   await noOverflow(page)
 })
 
@@ -378,7 +378,7 @@ test("empty and unassigned batches stay inspectable without invented scores", as
       exact: true,
     }),
   ).toBeVisible()
-  await expect(metric(page, "CAPA implemented")).toContainText(
+  await expect(metric(page, "CAPA implemented / raised")).toContainText(
     "Not available",
   )
   const record = clone().records[0]

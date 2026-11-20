@@ -1,9 +1,15 @@
-import type { CapaRow, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchKind, MatchRow, RecordDetail, SearchResult } from "../types"
+import type { CapaRow, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchKind, MatchRow, RecordDetail, SearchResult, SourcePassage } from "../types"
 
 const UNEXPECTED = "MATCH returned an unexpected response."
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 const text = (value: unknown): string => typeof value === "string" ? value : ""
+function passage(value: unknown): SourcePassage {
+  if (!isRecord(value) || !Number.isSafeInteger(value.start) || !Number.isSafeInteger(value.end) || (value.start as number)<0 ||
+    (value.end as number)-(value.start as number)!==Array.from(requiredText(value.quote)).length) throw new Error(UNEXPECTED)
+  return {field:requiredText(value.field),start:value.start as number,end:value.end as number,quote:value.quote as string,
+    ...(typeof value.record_id === "string" ? {record_id:value.record_id} : {})}
+}
 function requiredText(value: unknown): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(UNEXPECTED)
   return value
@@ -51,6 +57,8 @@ function parseRow(value: unknown, snapshotId: string): MatchRow {
   if (value.candidate_relationship !== undefined && !["direct", "related"].includes(value.candidate_relationship as string)) throw new Error(UNEXPECTED)
   return {
     deviationId: requiredText(value.pr_id),
+    temporalVerification: text(value.temporal_verification),
+    supportingPassage: value.supporting_passage ? passage(value.supporting_passage) : null,
     site: requiredText(value.site),
     openedDate: text(value.date_opened),
     status: text(value.status),
@@ -76,6 +84,14 @@ export function parseSearchResponse(value: unknown): SearchResult {
   if (!value.all_sites && rows.some(row => row.site !== value.site)) throw new Error(UNEXPECTED)
   const result: SearchResult = {
     rows,
+    snapshotId,
+    indexGeneration: text(value.index_generation),
+    notices: value.notices === undefined ? [] : stringList(value.notices),
+    asOf: text(value.as_of),
+    reviewState: text(value.review_state),
+    intent: text(value.question_intent),
+    searchId: value.search_id == null ? null : requiredText(value.search_id),
+    seed: isRecord(value.seed) ? {deviationId:requiredText(value.seed.pr_id),title:text(value.seed.record_name),site:requiredText(value.seed.site),opened:text(value.seed.date_opened)} : null,
     totalCount: rows.length,
     query: typeof value.query === "string" ? value.query : requiredText(value.query),
     scope: value.all_sites ? "All allowed sites" : requiredText(value.site),
@@ -109,6 +125,11 @@ export function parseSearchResponse(value: unknown): SearchResult {
     if (value.summary_id !== null && (typeof value.summary_id !== "string" || !/^[a-f0-9]{32}$/.test(value.summary_id))) throw new Error(UNEXPECTED)
     result.summaryId = value.summary_id as string | null
   }
+  if(isRecord(value.aggregate)){
+    const aggregate=value.aggregate
+    if(!["metadata","requires_event_definition"].includes(aggregate.kind as string)||!Array.isArray(aggregate.groups))throw new Error(UNEXPECTED)
+    result.aggregate={kind:aggregate.kind as "metadata"|"requires_event_definition",total:aggregate.total==null?null:count(aggregate.total),basis:requiredText(aggregate.basis),groups:aggregate.groups.map(item=>{if(!isRecord(item))throw new Error(UNEXPECTED);return {year:requiredText(item.year),count:count(item.count)}})}
+  }
   const interpretedBrowse = !!result.submittedCriteria && result.interpretation?.query === "" && result.searchMode === "browse"
   if (!interpretedBrowse && (!result.query) !== (result.searchMode === "browse") || result.limit < 1 || result.limit > 50 ||
     result.eligibleCount !== null && result.scopeCount !== null && result.eligibleCount > result.scopeCount ||
@@ -130,7 +151,11 @@ export function parseEvidenceOverview(value: unknown, expected: SearchResult): E
     if (content.length > 500 || !references.length || references.some(id => !reviewedIds.includes(id))) throw new Error(UNEXPECTED)
     return { text: content, references: [...new Set(references)] }
   })
-  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length}
+  const citations = value.citations === undefined ? undefined : Array.isArray(value.citations) ? value.citations.map(group=>{
+    if(!Array.isArray(group)) throw new Error(UNEXPECTED)
+    return group.map(item=>{const proof=passage(item);if(!proof.record_id||!reviewedIds.includes(proof.record_id))throw new Error(UNEXPECTED);return proof})
+  }) : (()=>{throw new Error(UNEXPECTED)})()
+  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length, citations}
 }
 
 const kinds: MatchKind[] = ["browse", "record_id", "identifier", "keyword", "exact", "hybrid", "semantic"]
@@ -151,6 +176,10 @@ export function parseFilters(value: unknown): MatchFilters {
     !["any", "linked", "completed", "none"].includes(value.capa as string)) throw new Error(UNEXPECTED)
   for (const key of ["date_from", "date_to"]) if (value[key] !== null && (typeof value[key] !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value[key] as string))) throw new Error(UNEXPECTED)
   return { years: value.years as number[], criticalities: stringList(value.criticalities), dr_types: stringList(value.dr_types),
+    exclude_criticalities:value.exclude_criticalities===undefined?[]:stringList(value.exclude_criticalities),
+    exclude_years:value.exclude_years===undefined?[]:Array.isArray(value.exclude_years)&&value.exclude_years.every(year=>Number.isInteger(year)&&Number(year)>=1900&&Number(year)<=2200)?value.exclude_years as number[]:(()=>{throw new Error(UNEXPECTED)})(),
+    sites: value.sites === undefined ? [] : stringList(value.sites), exclude_sites: value.exclude_sites === undefined ? [] : stringList(value.exclude_sites),
+    status: value.status === undefined ? "any" : ["any","open","closed"].includes(value.status as string) ? value.status as MatchFilters["status"] : (()=>{throw new Error(UNEXPECTED)})(),
     departments: stringList(value.departments), date_from: value.date_from as string | null, date_to: value.date_to as string | null, capa: value.capa as MatchFilters["capa"] }
 }
 export function parseFilterOptions(value: unknown): FilterOptions {
@@ -175,7 +204,7 @@ export function parseRecordDetail(value: unknown, expected: MatchRow): RecordDet
   if (!isRecord(value) || !Array.isArray(value.related_capas)) throw new Error(UNEXPECTED)
   if (value.pr_id !== expected.deviationId || value.site !== expected.site || value.source_snapshot_id !== expected.snapshotId)
     throw new Error("MATCH returned a different record, site or source version. Search again before inspecting this candidate.")
-  const fields = value.indexed_field_texts
+  const fields = value.original_field_texts ?? value.indexed_field_texts
   if (fields !== undefined && (!isRecord(fields) || Object.values(fields).some(value => typeof value !== "string"))) throw new Error(UNEXPECTED)
   const sections = isRecord(fields)
     ? Object.entries(fields).filter(([, value]) => text(value).trim()).map(([key, value]) => ({ label: fieldLabel(key), text: text(value) }))
@@ -189,12 +218,21 @@ export function parseRecordDetail(value: unknown, expected: MatchRow): RecordDet
       title: text(row.record_name),
       capaType: text(row.capa_type),
       summary: text(row.plan_excerpt),
+      ...(text(row.date_closed)?{dateClosed:text(row.date_closed)}:{}),
     }
   })
   const literal = value.literal_field_texts
   if (literal !== undefined && (!isRecord(literal) || Object.values(literal).some(value => typeof value !== "string"))) throw new Error(UNEXPECTED)
-  const literalSections = isRecord(literal) ? Object.entries(literal).filter(([, value]) => text(value).trim()).map(([key, value]) => ({ label: fieldLabel(key), text: text(value) })) : undefined
+  const literalSections = isRecord(literal) ? Object.entries(literal).filter(([key, value]) => text(value).trim() && !sections.some(section=>section.label===fieldLabel(key))).map(([key, value]) => ({ label: fieldLabel(key), text: text(value) })) : undefined
+  const evidence=value.evidence_coverage
+  const coverage=isRecord(evidence) ? {attachment_references:mockFlag(evidence.attachment_references),attachments_included:mockFlag(evidence.attachments_included),
+    unresolved_capa_mentions:stringList(evidence.unresolved_capa_mentions),effectiveness:text(evidence.effectiveness)} : undefined
+  const mentions=Array.isArray(value.source_mentions) ? value.source_mentions.map(item=>{
+    if(!isRecord(item))throw new Error(UNEXPECTED)
+    return {kind:requiredText(item.kind),value:requiredText(item.value),field:requiredText(item.field),start:count(item.start),end:count(item.end),role:requiredText(item.role)}
+  }) : []
   return { deviationId: expected.deviationId, site: expected.site, snapshotId: expected.snapshotId, sections, capas,
+    original:!!value.original_field_texts,coverage,mentions,
     ...(literalSections ? { literalSections } : {}) }
 }
 

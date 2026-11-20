@@ -9,6 +9,7 @@ export function useMatchOverview(result: SearchResult | null) {
   const [revision, setRevision] = useState(0)
   useEffect(() => {
     setValue(null); setError("")
+    if(result?.savedCaseId){setValue(result.savedOverview??null);setState(result.savedOverview?"success":"idle");return}
     if (!result?.summaryId || !result.rows.length) { setState("idle"); return }
     const controller = new AbortController()
     setState("loading")

@@ -24,6 +24,7 @@ import { RecordList } from "../components/RecordList"
 import { ClusterContext } from "../components/ClusterContext"
 import { ClusterMetrics } from "../components/ClusterMetrics"
 import { useMapData } from "../MapDataProvider"
+import { CurationPanel } from "../components/CurationPanel"
 export function ClusterDetailScreen({
   cluster,
   filters,
@@ -61,6 +62,7 @@ export function ClusterDetailScreen({
       <AnalysisStatus />
       <GuidedWorkspace step={2} clusterId={cluster.id}>
         <ClusterMetrics records={visible} clusterTotal={sumVolume(all)} />
+        <CurationPanel key={cluster.id} cluster={cluster} />
         <FilterPanel
           tooltip={mapHelp.filters}
           filters={filters}

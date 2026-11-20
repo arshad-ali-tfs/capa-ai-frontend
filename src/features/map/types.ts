@@ -64,6 +64,11 @@ export interface DeviationRecord {
   volume: number
   daysOpen: number | null
   monthCounts: Record<string, number>
+  originalClusterId?: string
+  assignmentReview?: {clusterId:string;reviewer:string;rationale:string;updatedAt:string} | null
+  sourceMentions?: {kind:string;value:string;field:string;start:number;end:number;role:string}[]
+  assignmentMargin?: number | null
+  secondClusterId?: string | null
 }
 export interface CapaRelationship {
   id: string
@@ -71,7 +76,7 @@ export interface CapaRelationship {
   status: string
   recordIds: string[]
 }
-export type ClusterContextSource = "current_analysis" | "historical" | "unavailable"
+export type ClusterContextSource = "current_analysis" | "historical" | "unavailable" | "reviewed"
 export interface HistoricalClusterContext {
   title: string
   summary: string
@@ -93,6 +98,30 @@ export interface Cluster {
   historicalContext?: HistoricalClusterContext | null
   warnings?: string[]
   capas: CapaRelationship[]
+  parentTheme?: string
+  reviewStatus?: "needs_review" | "reviewed"
+  themeSource?: "suggested" | "reviewed"
+  reviewedContext?: HistoricalClusterContext | null
+  membershipChanged?: boolean
+}
+export interface CurationChange {
+  operation:"cluster"|"assignment"|"split"|"reset_cluster"|"reset_assignment"
+  expected_revision:number
+  cluster_id:string
+  record_id?:string
+  title?:string
+  theme?:string
+  status?:"needs_review"|"reviewed"
+  reviewer:string
+  rationale:string
+}
+export interface MapReview {
+  revision:number
+  themes:string[]
+  taxonomyVersion:string
+  clusters:Record<string,{title:string;theme:string;status:string;reviewer:string;rationale:string;updatedAt:string}>
+  assignments:Record<string,{clusterId:string;reviewer:string;rationale:string;updatedAt:string}>
+  history:{revision:number;operation:string;recordId:string;clusterId:string;reviewer:string;rationale:string;updatedAt:string}[]
 }
 export interface MapRun {
   id: string
@@ -106,6 +135,7 @@ export interface MapDataset {
   capas?: CapaRelationship[]
   months: string[]
   refreshedAt: string
+  review?: MapReview
   analysis: {
     runId: string
     recordCount: number
@@ -116,6 +146,8 @@ export interface MapDataset {
     sourceAvailable: boolean
     sourceMode: string
     selection: "configured" | "latest_completed"
+    coverage?: {openedFrom:string|null;openedTo:string|null;yearCounts:Record<string,number>;eligibleDeviationCount:number|null;sourceDeviationCount:number|null;sourceCapaCount:number|null;sourceImportedAt:string|null;selectionMethod:string;rules:string[];missingOpenedDates:number}
+    provenance?: {recipe:Record<string,unknown>;recipeHash:string;outputFingerprint:string;assetFingerprintsAvailable:boolean;extractionHashes:Record<string,string>}
   }
 }
 export type MapRoute =

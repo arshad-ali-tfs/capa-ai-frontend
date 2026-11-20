@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test"
+const baseURL = process.env.CAPA_TEST_BASE_URL || "http://127.0.0.1:8100"
 export default defineConfig({
   testDir: "./tests",
   timeout: 60000,
@@ -7,13 +8,14 @@ export default defineConfig({
   reporter: [["list"], ["json", { outputFile: ".local/browser-tests.json" }]],
   outputDir: ".local/browser-artifacts",
   use: {
-    baseURL: "http://127.0.0.1:8100",
+    baseURL,
+    channel: process.env.CAPA_TEST_BROWSER_CHANNEL,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run start",
-    url: "http://127.0.0.1:8100",
+    command: process.env.CAPA_TEST_BASE_URL ? `npm run dev -- --port ${new URL(baseURL).port} --strictPort` : "npm run start",
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
   },

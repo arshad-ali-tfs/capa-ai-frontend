@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type RefObject } from "react"
+import { useEffect, useId, useRef, useState, type RefObject } from "react"
 import { EmptyState, HelpTooltip } from "@/shared/components"
 import { cx } from "@/shared/lib/classNames"
 import type { DeviationRecord } from "../types"
@@ -8,10 +8,12 @@ export function SourceReader({
   record,
   containerRef,
   onReview,
+  focusPassage,
 }: {
   record: DeviationRecord
   containerRef: RefObject<HTMLDivElement>
   onReview: () => void
+  focusPassage?:{field:string;start:number;end:number;value:string}|null
 }) {
   const [expanded, setExpanded] = useState(false)
   const readerRef = useRef<HTMLDivElement>(null)
@@ -19,6 +21,18 @@ export function SourceReader({
   const fields = useRef(new Map<string, HTMLElement>())
   const headings = useRef(new Map<string, HTMLHeadingElement>())
   const prefix = useId()
+  const mark=useRef<HTMLElement>(null)
+  useEffect(()=>{
+    if(!focusPassage)return
+    setExpanded(true)
+    window.requestAnimationFrame(()=>{mark.current?.scrollIntoView({block:"center"});mark.current?.focus({preventScroll:true})})
+  },[focusPassage,expanded])
+  function text(field:{key:string;text:string}){
+    if(!focusPassage||focusPassage.field!==field.key)return field.text
+    const points=Array.from(field.text),start=points.slice(0,focusPassage.start).join("").length,end=points.slice(0,focusPassage.end).join("").length
+    if(field.text.slice(start,end)!==focusPassage.value)return field.text
+    return <>{field.text.slice(0,start)}<mark ref={mark} tabIndex={-1} className="rounded bg-amber-100 text-suite-ink">{field.text.slice(start,end)}</mark>{field.text.slice(end)}</>
+  }
   // Older APIs remain readable as one intact source; never infer boundaries
   // from words such as "INVESTIGATION:" appearing inside an original field.
   const sections = record.sourceSections?.length ? record.sourceSections : (record.sourceNarrative
@@ -125,7 +139,7 @@ export function SourceReader({
               >
                 {field.label}
               </h3>
-              <blockquote className="py-4 whitespace-pre-wrap break-words text-[15px] leading-relaxed">{field.text}</blockquote>
+              <blockquote className="py-4 whitespace-pre-wrap break-words text-[15px] leading-relaxed">{text(field)}</blockquote>
             </section>
           ))}
         </div>

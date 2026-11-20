@@ -9,6 +9,9 @@ export function AnalysisStatus() {
   const { analysis, refresh, refreshing, refreshError, lastChecked, editing,
     runs, runsError, selectedRun, selectRun } =
     useMapData()
+  const coverage=analysis.coverage
+  const dominantYears=Object.entries(coverage?.yearCounts??{}).sort((a,b)=>b[1]-a[1]).slice(0,2)
+  const concentration=analysis.recordCount?dominantYears.reduce((sum,[,count])=>sum+count,0)/analysis.recordCount*100:0
   return (
     <section
       aria-label="Analysis coverage"
@@ -73,6 +76,13 @@ export function AnalysisStatus() {
           </button>
         </div>
       </div>
+      {coverage&&<div className="mt-3 rounded-lg border border-suite-line bg-suite-info-wash px-4 py-3 text-suite-blue" aria-label="Analysed time window">
+        <p className="font-bold">Deviation opened dates: {coverage.openedFrom ? `${formatDate(coverage.openedFrom)} – ${formatDate(coverage.openedTo ?? coverage.openedFrom)}` : "Unavailable"}</p>
+        <p className="mt-1 leading-5">{analysis.recordCount.toLocaleString()} analysed deviations{coverage.eligibleDeviationCount!=null?` of ${coverage.eligibleDeviationCount.toLocaleString()} eligible under this run’s rules`:""}. The analysis completion date describes processing, not the age of the deviations.</p>
+        {coverage.selectionMethod==="source_order"&&coverage.eligibleDeviationCount!=null&&analysis.recordCount<coverage.eligibleDeviationCount&&<p className="mt-1 font-bold">Source-order sample · these counts do not represent the current population or its severity distribution.</p>}
+        {analysis.recordCount>=100&&concentration>=80&&<p className="mt-1 font-bold">{concentration.toFixed(1)}% of analysed deviations opened in {dominantYears.map(([year])=>year).sort().join(" and ")}. This is the time distribution of this saved run.</p>}
+        {coverage.selectionMethod==="stratified"&&<p className="mt-1">Stratified sample across year, site and criticality; proportions describe this sample.</p>}
+      </div>}
       <p id="analysis-details" hidden={!detailsOpen} className="mt-2 break-words rounded-lg border border-suite-line bg-white p-3">
         {selectedRun ? "Selected analysis" : analysis.selection === "configured"
           ? "Configured analysis"
@@ -83,6 +93,12 @@ export function AnalysisStatus() {
           ? " · Source metadata restored from a verified equivalent export."
           : ""}
       </p>
+      {detailsOpen&&coverage&&<div className="mt-2 space-y-2 rounded-lg border border-suite-line bg-white p-3 leading-5">
+        <p>Source population: {coverage.sourceDeviationCount?.toLocaleString()??"Unknown"} deviations · {coverage.sourceCapaCount?.toLocaleString()??"Unknown"} CAPAs. Source rows include both record types.</p>
+        <p>Source imported: {coverage.sourceImportedAt?formatDate(coverage.sourceImportedAt,true):"Not retained"}. Opened-year coverage: {Object.entries(coverage.yearCounts).map(([year,count])=>`${year}: ${count.toLocaleString()}`).join(" · ")||"Unavailable"}.</p>
+        <p>Selection: {coverage.selectionMethod.replaceAll("_"," ")}. {coverage.missingOpenedDates} records lack usable opened dates.</p>
+        {analysis.provenance&&<details><summary className="cursor-pointer font-bold">Analysis recipe and fingerprints</summary><p className="mt-2 break-all">Recipe: {analysis.provenance.recipeHash}<br/>Saved output: {analysis.provenance.outputFingerprint}</p><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-[11px]">{JSON.stringify(analysis.provenance.recipe,null,2)}</pre>{!analysis.provenance.assetFingerprintsAvailable&&<p>Clustering asset fingerprints were not retained for this older run.</p>}</details>}
+      </div>}
       {analysis.sourceMode === "synthetic" && (
         <p className="mt-2 font-bold text-warn-ink">
           Synthetic test analysis · not historical source data.
@@ -96,7 +112,7 @@ export function AnalysisStatus() {
       )}
       {editing && (
         <p className="mt-2">
-          Save or discard your annotation changes to switch runs or refresh. Automatic checks
+          Finish or cancel your review changes to switch runs or refresh. Automatic checks
           are paused while you edit.
         </p>
       )}

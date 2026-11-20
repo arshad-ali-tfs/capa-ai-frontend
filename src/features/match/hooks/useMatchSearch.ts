@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { matchService } from "../services/matchService"
-import type { DetailState, IndexInfo, IndexState, MatchRow, RecordDetail, SearchInput, SearchResult, SearchState } from "../types"
+import type { DetailState, IndexInfo, IndexState, MatchRow, RecordDetail, SavedCase, SearchInput, SearchResult, SearchState } from "../types"
+import { rememberSearch } from "../location"
 import { validQuery } from "../searchModel"
 
 const messageOf = (error: unknown, fallback: string) =>
@@ -19,6 +20,7 @@ export function useMatchSearch() {
   const [indexInfo, setIndexInfo] = useState<IndexInfo | null>(null)
   const searchRequest = useRef<AbortController | null>(null)
   const detailRequest = useRef<AbortController | null>(null)
+  const retainedSources=useRef<RecordDetail[]>([])
   const selected = useMemo(() => result?.rows.find(row => row.deviationId === selectedId), [result, selectedId])
 
   useEffect(() => {
@@ -48,6 +50,8 @@ export function useMatchSearch() {
     setDetailError("")
     setDetailState("loading")
     try {
+      const retained=retainedSources.current.find(source=>source.deviationId===row.deviationId&&source.site===row.site&&source.snapshotId===row.snapshotId)
+      if(retained){setRecordDetail(retained);setDetailState("success");return}
       const detail = await matchService.getRecord(row, controller.signal)
       if (controller.signal.aborted) return
       setRecordDetail(detail)
@@ -63,6 +67,8 @@ export function useMatchSearch() {
     const text = input.query.trim()
     if (!validQuery(text)) return
     const request = structuredClone({ ...input, query: text })
+    const remembered=rememberSearch(request)
+    retainedSources.current=[]
     searchRequest.current?.abort()
     detailRequest.current?.abort()
     const controller = new AbortController()
@@ -78,6 +84,7 @@ export function useMatchSearch() {
     try {
       const result = await matchService.search(request, controller.signal)
       if (controller.signal.aborted) return
+      if(!remembered)result.notices=[...result.notices??[],"The browser could not retain this long search for reload. Save the investigation to keep its criteria and evidence."]
       setResult(result)
       setSearchState(result.rows.length ? "success" : "empty")
     } catch (error) {
@@ -89,5 +96,10 @@ export function useMatchSearch() {
   const select = useCallback((row: MatchRow) => { setSelectedId(row.deviationId); return loadRecord(row) }, [loadRecord])
   const retryDetail = useCallback(() => { if (selected) void loadRecord(selected) }, [selected, loadRecord])
   const cancel = useCallback(() => { searchRequest.current?.abort(); setSearchState("idle"); setSearchError("") }, [])
-  return { searchState, searchError, result, submitted, selected, selectedId, detailState, detailError, recordDetail, indexState, indexInfo, search, select, retryDetail, cancel }
+  const restore=useCallback((saved:SavedCase)=>{
+    searchRequest.current?.abort();detailRequest.current?.abort();retainedSources.current=saved.sources
+    setResult(saved.result);setSubmitted(saved.result.submittedCriteria??null);setSearchState(saved.result.rows.length?"success":"empty");setSearchError("")
+    setSelectedId("");setRecordDetail(null);setDetailState("idle")
+  },[])
+  return { searchState, searchError, result, submitted, selected, selectedId, detailState, detailError, recordDetail, indexState, indexInfo, search, select, retryDetail, cancel, restore }
 }

@@ -1,5 +1,5 @@
 import { mapApi } from "@/shared/api/clients"
-import type { MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "../types"
+import type { CurationChange, MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "../types"
 const invalid = () =>
   new Error(
     "MAP returned an invalid dataset. Retry, or contact the service owner if the issue continues.",
@@ -79,9 +79,9 @@ export function validateDataset(value: unknown): MapDataset {
       throw invalid()
     clusterIds.add(c.id)
     if (["contextSource", "titleSource", "analysisContext", "historicalContext"].some(key => c[key] !== undefined)) {
-      const sources = ["current_analysis", "historical", "unavailable"]
+      const sources = ["current_analysis", "historical", "unavailable", "reviewed"]
       if (!sources.includes(c.contextSource) || !sources.includes(c.titleSource)) throw invalid()
-      for (const key of ["analysisContext", "historicalContext"]) {
+      for (const key of ["analysisContext", "historicalContext", ...(c.reviewedContext !== undefined ? ["reviewedContext"] : [])]) {
         const context = c[key]
         if (context !== null && (!object(context) ||
           typeof context.title !== "string" || typeof context.summary !== "string" ||
@@ -89,7 +89,7 @@ export function validateDataset(value: unknown): MapDataset {
       }
       const current = c.analysisContext, historical = c.historicalContext
       if (current !== null && (!Number.isInteger(current.recordCount) || current.recordCount < 1 || current.runId !== analysis.runId)) throw invalid()
-      for (const [source, context] of [["current_analysis", current], ["historical", historical]] as const) {
+      for (const [source, context] of [["current_analysis", current], ["historical", historical], ["reviewed", c.reviewedContext]] as const) {
         if (c.contextSource === source && (!context?.summary.trim() || c.context !== context.summary)) throw invalid()
         if (c.titleSource === source && (!context?.title.trim() || c.title !== context.title)) throw invalid()
       }
@@ -165,7 +165,7 @@ export function validateDataset(value: unknown): MapDataset {
     if (r.clusterId) clusterRecordCounts.set(r.clusterId, (clusterRecordCounts.get(r.clusterId) || 0) + 1)
   }
   for (const cluster of value.clusters)
-    if (cluster.analysisContext && cluster.analysisContext.recordCount !== (clusterRecordCounts.get(cluster.id) || 0)) throw invalid()
+    if (cluster.analysisContext && !cluster.membershipChanged && cluster.analysisContext.recordCount !== (clusterRecordCounts.get(cluster.id) || 0)) throw invalid()
   // Older MAP services can still load, but cannot supply the overview CAPA KPI.
   if (value.capas !== undefined) {
     if (!Array.isArray(value.capas)) throw invalid()
@@ -180,6 +180,15 @@ export function validateDataset(value: unknown): MapDataset {
   return value as MapDataset
 }
 export const mapService = {
+  saveCuration: (run:string,change:CurationChange)=>mapApi.requestJson(`/api/v1/map/runs/${encodeURIComponent(run)}/curation`,{method:"PUT",body:JSON.stringify(change)}),
+  compareRuns: async (run:string,other:string)=>{
+    const value=await mapApi.requestJson<unknown>(`/api/v1/map/runs/${encodeURIComponent(run)}/compare?${new URLSearchParams({other_run_id:other})}`)
+    if(!object(value)||value.runId!==run||value.otherRunId!==other||
+      ![value.sharedRecords,value.changedRecords,value.assignmentChanges].every(count=>Number.isSafeInteger(count)&&count>=0)||
+      value.assignmentChanges>value.changedRecords||value.changedRecords>value.sharedRecords||typeof value.interpretation!=="string"||
+      !Array.isArray(value.changes)||value.changes.length!==value.changedRecords||value.changes.some((row:unknown)=>!object(row)||typeof row.id!=="string"||!strings(row.changedExtractionFields)||typeof row.sourceChanged!=="boolean"||typeof row.assignmentChanged!=="boolean"))throw invalid()
+    return value as {sharedRecords:number;changedRecords:number;assignmentChanges:number;interpretation:string;changes:{id:string;fromCluster:string|number|null;toCluster:string|number|null;changedExtractionFields:string[];sourceChanged:boolean;assignmentChanged:boolean}[]}
+  },
   loadDataset: async (signal?: AbortSignal, run = "") => {
     if (run && !/^[a-f0-9]{32}$/.test(run)) throw new Error("Invalid analysis run in the link.")
     const value = validateDataset(await mapApi.requestJson<unknown>(

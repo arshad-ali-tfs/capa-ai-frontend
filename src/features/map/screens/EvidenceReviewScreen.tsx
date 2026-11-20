@@ -1,5 +1,7 @@
-import { useRef } from "react"
-import { Badge, DisclosurePanel, HelpTooltip, PageHeading, Panel } from "@/shared/components"
+import { useRef, useState } from "react"
+import { AppLink, Badge, DisclosurePanel, HelpTooltip, PageHeading, Panel } from "@/shared/components"
+import { downloadJson } from "@/shared/lib/download"
+import { CurationPanel } from "../components/CurationPanel"
 import type {
   Cluster,
   DeviationRecord,
@@ -37,13 +39,14 @@ export function EvidenceReviewScreen({
   onDraftChange: (draft: ReviewDraft) => void
   onDraftReset: () => void
 }) {
-  const { records } = useMapData()
+  const { records,analysis,review } = useMapData()
   const related = cluster
     ? filterRecords(recordsForCluster(records, cluster.id), filters).filter(
         (r) => r.id !== record.id,
       )
     : []
   const sourceRef = useRef<HTMLDivElement>(null)
+  const [focusPassage,setFocusPassage]=useState<NonNullable<DeviationRecord['sourceMentions']>[number]|null>(null)
   const reviewRef = useRef<HTMLDivElement>(null)
   function focusPanel(element: HTMLDivElement | null) {
     element?.scrollIntoView({ block: "start" })
@@ -89,6 +92,10 @@ export function EvidenceReviewScreen({
             <HelpTooltip label="Source fields">{mapHelp.sourceFields}</HelpTooltip>
           </div>
         </section>
+        <div className="flex flex-wrap items-center gap-3">
+          <AppLink href={`/match?${new URLSearchParams({seed:record.id,fromMap:window.location.pathname+window.location.search})}`} className="map-secondary text-xs!">Find similar cases in MATCH</AppLink>
+          <button type="button" className="map-secondary text-xs!" onClick={()=>downloadJson(`MAP-evidence-${record.id}-${analysis.runId.slice(0,8)}.json`,{exportedAt:new Date().toISOString(),analysis,record,cluster,review})}>Export this evidence</button>
+        </div>
         {record.warnings.length > 0 && (
           <section
             aria-label="Record warnings"
@@ -104,10 +111,12 @@ export function EvidenceReviewScreen({
         )}
         <section aria-label="Evidence workspace" className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-4">
-            <SourceReader record={record} containerRef={sourceRef} onReview={() => focusPanel(reviewRef.current)} />
+            <SourceReader record={record} containerRef={sourceRef} onReview={() => focusPanel(reviewRef.current)} focusPassage={focusPassage} />
             <FiveWhExtraction value={record.fiveWh} />
+            {!!record.sourceMentions?.length&&<DisclosurePanel title="Equipment and location mentions" help="Literal source mentions, not confirmed event involvement or new hard-filter metadata."><ul className="space-y-2 text-xs">{record.sourceMentions.map((mention,index)=><li key={index}><button type="button" onClick={()=>{setFocusPassage(mention);focusPanel(sourceRef.current)}} className="font-bold text-suite-blue underline">{mention.kind}: {mention.value}</button><span className="ml-2 text-suite-muted">{mention.field.replaceAll("_"," ")}</span></li>)}</ul></DisclosurePanel>}
           </div>
           <aside aria-label="Review context" className="map-review-sidebar min-w-0 space-y-4 self-start">
+            <CurationPanel key={record.id} cluster={cluster} record={record} />
             <Panel
               title={
                 cluster ? "Matching details" : "Assignment context"

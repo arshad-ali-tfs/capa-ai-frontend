@@ -9,7 +9,7 @@ import {
 } from "react"
 import { mapService } from "./services/mapService"
 import { navigateTo } from "@/shared/lib/navigation"
-import type { MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "./types"
+import type { CurationChange, MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "./types"
 const runFromLocation = () => new URLSearchParams(window.location.search).get("run") || ""
 interface DataContext extends MapDataset {
   runs: MapRun[]
@@ -22,6 +22,8 @@ interface DataContext extends MapDataset {
   lastChecked: string
   setEditing: (editing: boolean) => void
   editing: boolean
+  setCurationEditing:(editing:boolean)=>void
+  saveCuration:(change:CurationChange)=>Promise<void>
   saveAnnotation: (
     id: string,
     draft: ReviewDraft,
@@ -43,10 +45,17 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     inFlight = useRef(false),
     mounted = useRef(false)
   const controller = useRef<AbortController>()
+  const annotationEditing=useRef(false),curationEditing=useRef(false)
   const setEditing = useCallback((value: boolean) => {
-    editingRef.current = value
-    setEditingState(value)
+    annotationEditing.current=value
+    editingRef.current = value || curationEditing.current
+    setEditingState(editingRef.current)
   }, [])
+  const setCurationEditing=useCallback((value:boolean)=>{
+    curationEditing.current=value
+    editingRef.current=value||annotationEditing.current
+    setEditingState(editingRef.current)
+  },[])
   const load = useCallback(async (run: string, navigate = false, interrupt = false) => {
     if ((inFlight.current && !interrupt) || editingRef.current) return
     controller.current?.abort()
@@ -140,6 +149,14 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     )
     return annotation
   }
+  async function saveCuration(change:CurationChange) {
+    if(!dataset)throw new Error("No analysis is loaded.")
+    if(annotationEditing.current)throw new Error("Save or discard the record annotation before changing the grouping.")
+    const run=dataset.analysis.runId
+    await mapService.saveCuration(run,change)
+    const updated=await mapService.loadDataset(undefined,run)
+    setDataset(current=>current?.analysis.runId===run?updated:current)
+  }
   if (!dataset)
     return error ? (
       <section
@@ -182,6 +199,8 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
         editing,
         setEditing,
         saveAnnotation,
+        setCurationEditing,
+        saveCuration,
       }}
     >
       {children}

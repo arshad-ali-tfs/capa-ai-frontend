@@ -1,7 +1,7 @@
 import { useId, useState, type KeyboardEvent } from "react"
 import { HelpTooltip, Panel } from "@/shared/components"
 import type { FilterOptions, MatchFilters, SearchMode } from "../types"
-import { capaLabels, dateError, filterChips, validQuery } from "../searchModel"
+import { capaLabels, dateError, emptyFilters, filterChips, validQuery } from "../searchModel"
 import { MultiFilter } from "./MultiFilter"
 
 export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onSiteChange, sites, topK, onTopKChange,
@@ -23,8 +23,9 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
   const chips = filterChips(filters)
   const remove = (key: keyof MatchFilters, value: string | number) => {
     if (key === "capa") update("capa", "any")
+    else if (key === "status") update("status", "any")
     else if (key === "date_from" || key === "date_to") update(key, null)
-    else onFiltersChange({ ...filters, [key]: filters[key].filter(item => item !== value) })
+    else { const values=filters[key]; if(Array.isArray(values)) onFiltersChange({ ...filters, [key]: values.filter(item => item !== value) }) }
   }
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && canSearch) { event.preventDefault(); onSearch() }
@@ -50,7 +51,7 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
     {(chips.length > 0 || site) && <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Active filters">
       {site && <button type="button" aria-label={`Remove Site: ${site}`} onClick={() => onSiteChange("")} className="min-h-8 max-w-full rounded-full bg-suite-info-wash px-3 py-1 text-xs text-suite-blue [overflow-wrap:anywhere]">Site: {site} ×</button>}
       {chips.map(chip => <button key={`${chip.key}:${chip.value}`} type="button" aria-label={`Remove ${chip.label}`} onClick={() => remove(chip.key, chip.value)} className="min-h-8 max-w-full rounded-full bg-suite-info-wash px-3 py-1 text-xs text-suite-blue [overflow-wrap:anywhere]">{chip.label} ×</button>)}
-      <button type="button" onClick={() => { onFiltersChange({ years: [], criticalities: [], dr_types: [], departments: [], date_from: null, date_to: null, capa: "any" }); onSiteChange("") }} className="min-h-8 px-2 text-xs font-bold text-suite-blue">Clear filters</button>
+      <button type="button" onClick={() => { onFiltersChange(emptyFilters()); onSiteChange("") }} className="min-h-8 px-2 text-xs font-bold text-suite-blue">Clear filters</button>
     </div>}
     {optionsError && <p className="mt-3 text-xs text-suite-muted">{optionsError} <button type="button" onClick={onRetryOptions} className="min-h-8 font-bold text-suite-blue underline">Retry filter counts</button></p>}
     {error && <p className="mt-3 text-xs font-bold text-brand" role="alert">{error}</p>}
@@ -68,6 +69,9 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
     <details className="mt-3 rounded-lg border border-suite-line-soft bg-suite-hover">
       <summary className="cursor-pointer px-3 py-2.5 text-xs font-bold text-suite-blue outline-none focus-visible:ring-2 focus-visible:ring-brand">More filters · department, dates and CAPA</summary>
       <div className="grid min-w-0 grid-cols-1 gap-3 border-t border-suite-line-soft p-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MultiFilter label="Include sites" options={sites.map(item=>({value:item.site,count:item.count}))} selected={filters.sites ?? []} onChange={values=>{onSiteChange("");update("sites",values as string[])}} help="Include any of these allowed sites. All other filters must also match." />
+        <MultiFilter label="Exclude sites" options={sites.map(item=>({value:item.site,count:item.count}))} selected={filters.exclude_sites ?? []} onChange={values=>update("exclude_sites",values as string[])} help="Exclude these sites before retrieval. A site cannot be both included and excluded." />
+        <label className="flex flex-col gap-1 text-xs font-bold">Deviation status<select value={filters.status ?? "any"} onChange={event=>update("status",event.target.value as MatchFilters["status"])} className="min-h-11 rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal"><option value="any">Any indexed status</option><option value="closed">Closed deviations</option><option value="open">Open deviations · may be unavailable</option></select></label>
         <div className="min-w-0 sm:col-span-2"><MultiFilter label="Departments" options={options?.facets.departments ?? []} selected={filters.departments} onChange={values => update("departments", values as string[])} help="Source responsible departments. Find an option by typing inside the dropdown. Counts reflect other active filters." /></div>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-bold text-suite-slate">Opened from<input type="date" value={filters.date_from ?? ""} max={filters.date_to ?? undefined} onChange={event => update("date_from", event.target.value || null)} className="min-h-11 w-full min-w-0 rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand" /></label>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-bold text-suite-slate">Opened to<input type="date" value={filters.date_to ?? ""} min={filters.date_from ?? undefined} onChange={event => update("date_to", event.target.value || null)} className="min-h-11 w-full min-w-0 rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand" /></label>
