@@ -1,3 +1,4 @@
+import { parseAnswerMetadata } from "../summaryEvidence"
 import type { CapaRow, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchKind, MatchRow, RecordDetail, SearchResult, SourcePassage } from "../types"
 
 const UNEXPECTED = "MATCH returned an unexpected response."
@@ -26,6 +27,7 @@ function mockFlag(value: unknown): boolean {
 export const fieldLabel = (value: string) => ({
   DETAILED_DESCRIPTION: "Description",
   CONCLUSION: "Conclusion",
+  CORRECTIONS_AND_CAPA_PLAN: "Corrections and CAPA plan",
   COMBINED_TEXT: "Combined indexed text",
   RECORD_NAME: "Record title",
   INVESTIGATION: "Investigation",
@@ -155,7 +157,7 @@ export function parseEvidenceOverview(value: unknown, expected: SearchResult): E
     if(!Array.isArray(group)) throw new Error(UNEXPECTED)
     return group.map(item=>{const proof=passage(item);if(!proof.record_id||!reviewedIds.includes(proof.record_id))throw new Error(UNEXPECTED);return proof})
   }) : (()=>{throw new Error(UNEXPECTED)})()
-  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length, citations}
+  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length, citations,...parseAnswerMetadata(value,reviewedIds)}
 }
 
 const kinds: MatchKind[] = ["browse", "record_id", "identifier", "keyword", "exact", "hybrid", "semantic"]
