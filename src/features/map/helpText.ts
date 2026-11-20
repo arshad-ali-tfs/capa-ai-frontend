@@ -2,6 +2,7 @@ import type { MapFilterKey } from "./types"
 
 // Describe the saved data and the calculations actually used by the MAP UI.
 export const mapHelp = {
+  onTimeClosure: "For each source criticality, deviations closed on or before the recorded DATE_TO_CLOSE divided by closed deviations with valid due and closure dates. Same-day closure counts as on time. Open, cancelled, missing, invalid or contradictory dates/statuses are excluded, not counted as late. The recorded due date may already reflect extensions; original due-date history is not inferred. Rates follow this view’s filters and saved source status.",
   coverage: "Analysed records are the records included in this saved run. The source snapshot may contain more records. Filters narrow this analysis; they do not analyse the rest of the source.",
   run: "Choose a saved analysis. Test marks synthetic data. Latest analysis uses the configured default when one is set, otherwise the latest completed run. Refresh data reloads saved results and annotations; it does not run the AI again.",
   activeClusters: "Number of clusters with at least one record matching the current filters. Unassigned records are listed separately. This is the number visible in this analysis, not a limit on possible clusters.",
@@ -38,6 +39,10 @@ export const mapHelp = {
 }
 
 export const filterHelp: Record<MapFilterKey, string> = {
+  capaLink: "Select deviations with an explicit parent/root-parent CAPA link in this source snapshot, or no retained link. Missing source coverage is unavailable, not proof that no CAPA exists. A shared CAPA can match several deviations.",
+  capaStatus: "Select deviations linked to at least one CAPA with this recorded source status. This selects deviations; it does not change the CAPA KPI denominator, which includes all linked CAPAs for the resulting deviations.",
+  dueStatus: "Past due includes closed late and open overdue. Open overdue means recorded open in the saved source with a due date before today (UTC); due today is not overdue. Closed late compares DATE_CLOSED with DATE_TO_CLOSE. Missing/invalid dates and contradictory statuses are unavailable. This is not a live QMS status check.",
+  clusterGroup: "Suggested grouping of related detailed clusters. Selecting a group narrows records and KPIs without changing the saved clusters, assignments or AI outputs. All groups includes unassigned records.",
   year: "Year of the source opened date. It may differ from the event date described in the narrative. Only years represented in this analysis are available.",
   criticality: mapHelp.criticality,
   drType: "Deviation record type (DR type) retained from the source. Options depend on the records in this analysis.",

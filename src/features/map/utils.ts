@@ -1,3 +1,4 @@
+import { filterMapRecords, mapFilterOptions } from "./recordFilters"
 import type { DeviationRecord, Filters, MapFilterKey } from "./types"
 export const emptyMapFilters = (): Filters<MapFilterKey> => ({
   year: "All",
@@ -11,30 +12,18 @@ export const emptyMapFilters = (): Filters<MapFilterKey> => ({
   productionArea: "All",
   productionLine: "All",
   division: "All",
+  capaLink: "All",
+  capaStatus: "All",
+  dueStatus: "All",
+  clusterGroup: "All",
 })
 export const emptyOverviewFilters = emptyMapFilters
 export const emptyDetailFilters = emptyMapFilters
-export const filterRecords = <K extends string>(
-  source: DeviationRecord[],
-  filters: Filters<K>,
-) =>
-  source.filter((item) =>
-    Object.entries(filters).every(
-      ([key, selected]) =>
-        selected === "All" ||
-        String(item[key as keyof DeviationRecord]) === selected,
-    ),
-  )
+export const filterRecords = filterMapRecords
 export const unavailable = (value: string) =>
   !value.trim() ||
   ["not provided", "not available", "unavailable"].includes(value.toLowerCase())
-export const getFilterOptions = (
-  source: DeviationRecord[],
-  key: MapFilterKey,
-) =>
-  Array.from(new Set(source.map((item) => String(item[key])))).sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true }),
-  )
+export const getFilterOptions = mapFilterOptions
 export const recordsForCluster = (source: DeviationRecord[], id: string) =>
   source.filter((item) => item.clusterId === id)
 export const sumVolume = (source: DeviationRecord[]) =>
@@ -109,5 +98,6 @@ export const readMapFilters = (): Filters<MapFilterKey> => {
     filters = emptyMapFilters()
   for (const key of Object.keys(filters) as MapFilterKey[])
     filters[key] = params.get(key) || "All"
+  filters.clusterGroup = params.get("clusterGroup") || params.get("theme") || "All"
   return filters
 }

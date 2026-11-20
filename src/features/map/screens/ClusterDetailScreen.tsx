@@ -36,9 +36,10 @@ export function ClusterDetailScreen({
   onFilterChange: (key: MapFilterKey, value: string) => void
   onClear: () => void
 }) {
-  const { records, months, refreshedAt } = useMapData()
+  const data = useMapData()
+  const { records, months, refreshedAt } = data
   const all = recordsForCluster(records, cluster.id),
-    visible = filterRecords(all, filters)
+    visible = filterRecords(all, filters, data)
   const fields = [
     ...detailFields,
     ...overviewFields.filter(
@@ -68,12 +69,12 @@ export function ClusterDetailScreen({
           filters={filters}
           fields={fields.map((field) => ({
             ...field,
-            options: getFilterOptions(all, field.key),
+            options: getFilterOptions(all, field.key, data),
             tooltip: filterHelp[field.key],
           }))}
           onChange={onFilterChange}
           onClear={onClear}
-          primaryCount={4}
+          primaryCount={7}
           resultLabel={`${visible.length} ${visible.length === 1 ? "record" : "records"}`}
         />
         {!!cluster.warnings?.length && (
