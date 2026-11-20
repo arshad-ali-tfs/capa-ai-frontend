@@ -1,3 +1,4 @@
+import { OnTimeClosureMetric } from "./OnTimeClosureMetric"
 import { MetricCard } from "@/shared/components"
 import { mapHelp } from "../helpText"
 import { formatShare, overviewMetrics } from "../overviewMetrics"
@@ -5,20 +6,17 @@ import type { CapaRelationship, DeviationRecord } from "../types"
 import { CriticalityMetric } from "./CriticalityMetric"
 import { TopDrTypeMetric } from "./TopDrTypeMetric"
 
-export function OverviewMetrics({ records, capas, sourceAvailable, activeClusters }: {
+export function OverviewMetrics({ records, capas, sourceAvailable }: {
   records: DeviationRecord[]
   capas?: CapaRelationship[]
   sourceAvailable: boolean
-  activeClusters: number
 }) {
   const metrics = overviewMetrics(records, capas, sourceAvailable)
   const count = (value: number) => value.toLocaleString()
   const { total, implemented, raised } = metrics
   return (
     <section aria-label="Analysis KPIs" className="map-kpi-grid">
-      <MetricCard label="Active clusters" value={count(activeClusters)} help="Within the filtered analysis" tooltip={mapHelp.activeClusters}>
-        <p className="mt-1 text-xs leading-5 text-suite-muted">{count(total)} {total === 1 ? "deviation" : "deviations"} in this view</p>
-      </MetricCard>
+      <OnTimeClosureMetric records={records} />
       <CriticalityMetric metrics={metrics} />
       <TopDrTypeMetric metrics={metrics} />
       <MetricCard

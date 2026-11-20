@@ -205,7 +205,7 @@ test("unavailable source filters are disabled and explained", async ({
   page,
 }) => {
   await page.goto("/map")
-  await page.getByText("More filters (6)", { exact: true }).click()
+  await page.getByText(/^More filters \(\d+\)$/).click()
   for (const name of [
     "Building",
     "Room",
@@ -350,7 +350,7 @@ test("malformed and unavailable API responses show retry, never a blank or sampl
   await expect(page.getByRole("alert")).toContainText("invalid dataset")
   failure = value
   await page.getByRole("button", { name: "Try again", exact: true }).click()
-  await expect(page.getByText("Active clusters", { exact: true })).toBeVisible()
+  await expect(page.getByText("On-time closure", { exact: true })).toBeVisible()
   expect(errors).toEqual([])
   await page.route("**/map/dataset", (route) =>
     route.fulfill({ status: 503, json: { detail: "Fictional MAP outage" } }),
@@ -359,7 +359,7 @@ test("malformed and unavailable API responses show retry, never a blank or sampl
   await expect(page.getByRole("alert")).toContainText(
     "previous analysis remains displayed",
   )
-  await expect(page.getByText("Active clusters", { exact: true })).toBeVisible()
+  await expect(page.getByText("On-time closure", { exact: true })).toBeVisible()
 })
 
 test("empty and unassigned batches stay inspectable without invented scores", async ({
@@ -407,7 +407,7 @@ test("zero month counts have no bar and collapsed panels do not stretch", async 
   const value = await data(page),
     record = value.records[0]
   await page.goto("/map")
-  await page.getByText("Active clusters", { exact: true }).waitFor()
+  await page.getByText("On-time closure", { exact: true }).waitFor()
   const panels = await page
     .locator("details.rounded-xl:not([open])")
     .evaluateAll((items) =>

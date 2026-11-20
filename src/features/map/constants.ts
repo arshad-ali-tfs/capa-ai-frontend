@@ -18,12 +18,16 @@ export const overviewFields: OverviewField[] = [
   { key: "criticality", label: "Criticality" },
   { key: "drType", label: "DR types" },
   { key: "site", label: "Sites" },
+  { key: "capaLink", label: "CAPA linkage" },
+  { key: "capaStatus", label: "CAPA status" },
+  { key: "dueStatus", label: "Due-date status" },
   { key: "department", label: "Departments" },
   { key: "building", label: "Building" },
   { key: "room", label: "Room" },
   { key: "suite", label: "Suite" },
   { key: "productionArea", label: "Production area" },
   { key: "productionLine", label: "Production line" },
+  { key: "clusterGroup", label: "Cluster group" },
 ]
 
 export const detailFields: DetailField[] = [
@@ -31,4 +35,7 @@ export const detailFields: DetailField[] = [
   { key: "site", label: "Sites" },
   { key: "year", label: "Year" },
   { key: "department", label: "Department" },
+  { key: "capaLink", label: "CAPA linkage" },
+  { key: "capaStatus", label: "CAPA status" },
+  { key: "dueStatus", label: "Due-date status" },
 ]

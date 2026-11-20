@@ -106,7 +106,7 @@ test("KPI cards align within each row, keep readable values and fit the availabl
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
     const headerSize = await kpis.locator(".map-kpi-card > p").first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))
-    const valueSize = await kpis.locator(".map-kpi-card > div > p").first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))
+    const valueSize = await kpis.locator(".map-kpi-card > div > p, .map-kpi-card > div dd").first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))
     expect(valueSize).toBeGreaterThan(headerSize)
   }
 })

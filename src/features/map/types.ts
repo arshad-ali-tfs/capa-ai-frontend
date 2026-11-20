@@ -1,6 +1,11 @@
+import type { DueStatus } from "./deadlines"
 export type Criticality = string
 export type RecordStatus = string
 export type OverviewFilterKey =
+  | "capaLink"
+  | "capaStatus"
+  | "dueStatus"
+  | "clusterGroup"
   | "year"
   | "criticality"
   | "drType"
@@ -11,7 +16,7 @@ export type OverviewFilterKey =
   | "suite"
   | "productionArea"
   | "productionLine"
-export type DetailFilterKey = "division" | "site" | "year" | "department"
+export type DetailFilterKey = "division" | "site" | "year" | "department" | "capaLink" | "capaStatus" | "dueStatus"
 export type MapFilterKey = OverviewFilterKey | "division"
 export type Filters<K extends string> = Record<K, string>
 export interface ReviewDraft {
@@ -45,6 +50,9 @@ export interface DeviationRecord {
   criticality: Criticality
   status: RecordStatus
   opened: string
+  dueDate?: string | null
+  closedDate?: string | null
+  dueStatus?: DueStatus
   createdLabel: string
   drType: string
   building: string
@@ -81,6 +89,7 @@ export interface AnalysisClusterContext extends HistoricalClusterContext {
   runId: string
 }
 export interface Cluster {
+  parentTheme?: string
   id: string
   title: string
   shortTitle: string
@@ -115,6 +124,7 @@ export interface MapDataset {
     sourceResolution?: "original_snapshot" | "verified_equivalent_export" | "unavailable"
     sourceAvailable: boolean
     sourceMode: string
+    deadlineAsOf?: string
     selection: "configured" | "latest_completed"
   }
 }

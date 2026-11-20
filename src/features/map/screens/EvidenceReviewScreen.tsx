@@ -1,3 +1,4 @@
+import { dueStatusLabels } from "../deadlines"
 import { useRef } from "react"
 import { Badge, DisclosurePanel, HelpTooltip, PageHeading, Panel } from "@/shared/components"
 import type {
@@ -37,9 +38,10 @@ export function EvidenceReviewScreen({
   onDraftChange: (draft: ReviewDraft) => void
   onDraftReset: () => void
 }) {
-  const { records } = useMapData()
+  const data = useMapData()
+  const { records } = data
   const related = cluster
-    ? filterRecords(recordsForCluster(records, cluster.id), filters).filter(
+    ? filterRecords(recordsForCluster(records, cluster.id), filters, data).filter(
         (r) => r.id !== record.id,
       )
     : []
@@ -86,6 +88,7 @@ export function EvidenceReviewScreen({
             <Badge tone="amber">{record.criticality}</Badge>
             <Badge>{record.status}</Badge>
             <span className="text-xs">Opened {formatDate(record.opened)}</span>
+            {record.dueStatus !== undefined && <span className="text-xs">Due {formatDate(record.dueDate || "")} · Closed {formatDate(record.closedDate || "")} · {dueStatusLabels[record.dueStatus]}</span>}
             <HelpTooltip label="Source fields">{mapHelp.sourceFields}</HelpTooltip>
           </div>
         </section>

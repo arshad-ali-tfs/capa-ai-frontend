@@ -1,3 +1,4 @@
+import { ClusterGroups } from "../components/ClusterGroups"
 import {
   FilterPanel,
   PageHeading,
@@ -27,8 +28,10 @@ export function OverviewScreen({
   onFilterChange: (key: MapFilterKey, value: string) => void
   onClear: () => void
 }) {
-  const { clusters, records, capas, analysis, refreshedAt } = useMapData()
-  const filtered = filterRecords(records, filters)
+  const data = useMapData()
+  const { clusters, records, capas, analysis, refreshedAt } = data
+  const groupScope = filterRecords(records, {...filters,clusterGroup:"All"}, data)
+  const filtered = filterRecords(records, filters, data)
   const visible = clusters
     .map((cluster) => ({
       cluster,
@@ -52,20 +55,21 @@ export function OverviewScreen({
       />
       <AnalysisStatus />
       <GuidedWorkspace step={1}>
-        <OverviewMetrics records={filtered} capas={capas} sourceAvailable={analysis.sourceAvailable} activeClusters={visible.length} />
+        <OverviewMetrics records={filtered} capas={capas} sourceAvailable={analysis.sourceAvailable} />
         <FilterPanel
           tooltip={mapHelp.filters}
           filters={filters}
           fields={fields.map((field) => ({
             ...field,
-            options: getFilterOptions(records, field.key),
+            options: getFilterOptions(records, field.key, data),
             tooltip: filterHelp[field.key],
           }))}
           onChange={onFilterChange}
           onClear={onClear}
-          primaryCount={4}
+          primaryCount={7}
           resultLabel={`${visible.length} clusters · ${filtered.length} ${filtered.length === 1 ? "record" : "records"}`}
         />
+        <ClusterGroups clusters={clusters} records={groupScope} selected={filters.clusterGroup} onChange={value=>onFilterChange("clusterGroup",value)} />
         <ClusterSummary
           groups={visible}
           viewTotal={sumVolume(filtered)}
