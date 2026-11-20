@@ -1,3 +1,4 @@
+import { parseAnswerMetadata } from "../summaryEvidence"
 import type { CapaRow, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchKind, MatchRow, RecordDetail, SearchResult } from "../types"
 
 const UNEXPECTED = "MATCH returned an unexpected response."
@@ -20,6 +21,7 @@ function mockFlag(value: unknown): boolean {
 export const fieldLabel = (value: string) => ({
   DETAILED_DESCRIPTION: "Description",
   CONCLUSION: "Conclusion",
+  CORRECTIONS_AND_CAPA_PLAN: "Corrections and CAPA plan",
   COMBINED_TEXT: "Combined indexed text",
   RECORD_NAME: "Record title",
   INVESTIGATION: "Investigation",
@@ -130,7 +132,7 @@ export function parseEvidenceOverview(value: unknown, expected: SearchResult): E
     if (content.length > 500 || !references.length || references.some(id => !reviewedIds.includes(id))) throw new Error(UNEXPECTED)
     return { text: content, references: [...new Set(references)] }
   })
-  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length}
+  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length,...parseAnswerMetadata(value,reviewedIds)}
 }
 
 const kinds: MatchKind[] = ["browse", "record_id", "identifier", "keyword", "exact", "hybrid", "semantic"]
@@ -175,7 +177,7 @@ export function parseRecordDetail(value: unknown, expected: MatchRow): RecordDet
   if (!isRecord(value) || !Array.isArray(value.related_capas)) throw new Error(UNEXPECTED)
   if (value.pr_id !== expected.deviationId || value.site !== expected.site || value.source_snapshot_id !== expected.snapshotId)
     throw new Error("MATCH returned a different record, site or source version. Search again before inspecting this candidate.")
-  const fields = value.indexed_field_texts
+  const fields = value.original_field_texts ?? value.indexed_field_texts
   if (fields !== undefined && (!isRecord(fields) || Object.values(fields).some(value => typeof value !== "string"))) throw new Error(UNEXPECTED)
   const sections = isRecord(fields)
     ? Object.entries(fields).filter(([, value]) => text(value).trim()).map(([key, value]) => ({ label: fieldLabel(key), text: text(value) }))
@@ -193,7 +195,7 @@ export function parseRecordDetail(value: unknown, expected: MatchRow): RecordDet
   })
   const literal = value.literal_field_texts
   if (literal !== undefined && (!isRecord(literal) || Object.values(literal).some(value => typeof value !== "string"))) throw new Error(UNEXPECTED)
-  const literalSections = isRecord(literal) ? Object.entries(literal).filter(([, value]) => text(value).trim()).map(([key, value]) => ({ label: fieldLabel(key), text: text(value) })) : undefined
+  const literalSections = isRecord(literal) ? Object.entries(literal).filter(([key, value]) => text(value).trim() && !sections.some(section=>section.label===fieldLabel(key))).map(([key, value]) => ({ label: fieldLabel(key), text: text(value) })) : undefined
   return { deviationId: expected.deviationId, site: expected.site, snapshotId: expected.snapshotId, sections, capas,
     ...(literalSections ? { literalSections } : {}) }
 }
