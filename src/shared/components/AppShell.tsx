@@ -8,6 +8,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const modules = [
     { label: "Home", href: "/", active: currentPath === "/" },
     { label: "MAP", href: "/map", active: currentPath.startsWith("/map") },
+    {
+      label: "MATCH",
+      href: "/match",
+      active: currentPath.startsWith("/match"),
+    },
   ]
 
   return (

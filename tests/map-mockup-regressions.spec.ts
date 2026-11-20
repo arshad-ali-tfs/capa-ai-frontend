@@ -65,8 +65,8 @@ test("mockup panels, broad row targets and review cues remain usable at each bre
   const table = await page.getByRole("heading", { name: "Cluster summary · Top patterns", exact: true }).locator("..").boundingBox()
   const chart = await page.locator("details").filter({ hasText: "Deviation volume by cluster" }).boundingBox()
   if (page.viewportSize()!.width >= 1280) {
-    expect(Math.abs(table!.y - chart!.y)).toBeLessThan(2)
-    expect(chart!.x).toBeGreaterThan(table!.x)
+    expect(chart!.y + chart!.height).toBeLessThanOrEqual(table!.y)
+    expect(Math.abs(table!.width - chart!.width)).toBeLessThan(2)
     expect((await coverage.boundingBox())!.height).toBeLessThan(45)
   }
   await page.getByRole("link", { name: `Open ${cluster.title} cluster detail`, exact: true }).click()

@@ -1,101 +1,22 @@
-// Production static server and MAP-only server-side proxy.
+// Production static server and server-side proxy for the backend services.
 import http from "node:http"
 import https from "node:https"
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import {
+  findService,
+  resolveServices,
+  upstreamHeaders,
+  upstreamUrl,
+} from "./config/serverProxy.mjs"
 const project = path.dirname(fileURLToPath(import.meta.url))
 if (fs.existsSync(path.join(project, ".env")))
   process.loadEnvFile(path.join(project, ".env"))
 const root = path.resolve(project, "dist")
-function httpUrl(value, variableName) {
-  const raw = String(value || "").trim()
-  if (!raw) throw new Error(`${variableName} must be configured.`)
-  const normalized = /^[a-z][a-z\d+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`
-  const url = new URL(normalized)
-  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
-    throw new Error(`${variableName} must be an HTTP(S) URL without credentials.`)
-  return url
-}
-const configuredTarget = String(process.env.MAP_API_TARGET || "http://127.0.0.1:8101").trim()
-// A Databricks app resource resolves to the target app's name, not its URL.
-// Keep accepting an explicit URL for local use and existing deployments.
-const targetIsUrl = /^[a-z][a-z\d+.-]*:\/\//i.test(configuredTarget) || configuredTarget.includes(".")
-const configuredUpstream = targetIsUrl ? httpUrl(configuredTarget, "MAP_API_TARGET") : null
-const targetAppName = configuredUpstream ? "" : configuredTarget
-let resolvedUpstream = configuredUpstream
-let pendingTargetResolution = null
+const services = resolveServices(process.env)
 if (!fs.existsSync(path.join(root, "index.html")))
   throw new Error("Run npm run build first.")
-let databricksToken = ""
-let databricksTokenExpiresAt = 0
-let pendingTokenRequest = null
-
-async function mapBearerToken() {
-  const configuredToken = process.env.MAP_API_BEARER_TOKEN?.trim()
-  if (configuredToken) return configuredToken
-
-  const rawHost = process.env.DATABRICKS_HOST?.trim()
-  const host = rawHost ? httpUrl(rawHost, "DATABRICKS_HOST").origin : ""
-  const clientId = process.env.DATABRICKS_CLIENT_ID?.trim()
-  const clientSecret = process.env.DATABRICKS_CLIENT_SECRET?.trim()
-  if (!host || !clientId || !clientSecret) {
-    if (process.env.DATABRICKS_APP_NAME)
-      throw new Error("Databricks app OAuth credentials are unavailable.")
-    return ""
-  }
-
-  if (databricksToken && Date.now() < databricksTokenExpiresAt - 60_000)
-    return databricksToken
-  if (!pendingTokenRequest) {
-    pendingTokenRequest = (async () => {
-      const tokenUrl = new URL("/oidc/v1/token", host)
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
-          "content-type": "application/x-www-form-urlencoded",
-          accept: "application/json",
-        },
-        body: new URLSearchParams({ grant_type: "client_credentials", scope: "all-apis" }),
-        signal: AbortSignal.timeout(15_000),
-      })
-      if (!response.ok) throw new Error(`Databricks OAuth token request failed (${response.status}).`)
-      const token = await response.json()
-      if (typeof token.access_token !== "string" || !Number.isFinite(token.expires_in))
-        throw new Error("Databricks OAuth returned an invalid token response.")
-      databricksToken = token.access_token
-      databricksTokenExpiresAt = Date.now() + token.expires_in * 1000
-      return databricksToken
-    })().finally(() => { pendingTokenRequest = null })
-  }
-  return pendingTokenRequest
-}
-
-async function mapApiTarget() {
-  if (resolvedUpstream) return resolvedUpstream
-  if (!targetAppName || !process.env.DATABRICKS_APP_NAME)
-    throw new Error("MAP_API_TARGET must be an HTTP(S) URL outside Databricks Apps.")
-  if (!pendingTargetResolution) {
-    pendingTargetResolution = (async () => {
-      const rawHost = process.env.DATABRICKS_HOST?.trim()
-      const host = rawHost ? httpUrl(rawHost, "DATABRICKS_HOST").origin : ""
-      const token = await mapBearerToken()
-      if (!host || !token) throw new Error("Databricks app identity is unavailable.")
-      const response = await fetch(
-        new URL(`/api/2.0/apps/${encodeURIComponent(targetAppName)}`, host),
-        { headers: { authorization: "Bearer " + token, accept: "application/json" }, signal: AbortSignal.timeout(15_000) },
-      )
-      if (!response.ok) throw new Error(`Databricks could not resolve the MAP app resource (${response.status}).`)
-      const app = await response.json()
-      if (typeof app.url !== "string" || !app.url.trim())
-        throw new Error("Databricks returned no URL for the MAP app resource.")
-      resolvedUpstream = httpUrl(app.url, "MAP app URL")
-      return resolvedUpstream
-    })().finally(() => { pendingTargetResolution = null })
-  }
-  return pendingTargetResolution
-}
 const mime = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -113,7 +34,7 @@ function json(response, status, detail) {
   })
   response.end(JSON.stringify({ detail }))
 }
-const server = http.createServer(async (request, response) => {
+const server = http.createServer((request, response) => {
   let url
   try {
     url = new URL(request.url, "http://localhost")
@@ -122,45 +43,39 @@ const server = http.createServer(async (request, response) => {
     return
   }
   const pathname = url.pathname
-  if (pathname === "/map/dataset" || pathname.startsWith("/api/v1/map/")) {
-    const headers = { accept: "application/json" }
-    if (request.headers["content-type"])
-      headers["content-type"] = request.headers["content-type"]
-    try {
-      const bearer = await mapBearerToken()
-      const upstream = await mapApiTarget()
-      const target = new URL(upstream.href)
-      target.pathname = upstream.pathname.replace(/\/$/, "") + pathname
-      target.search = url.search
-      if (bearer) headers.authorization = "Bearer " + bearer
-      const client = target.protocol === "https:" ? https : http
-      const proxy = client.request(
-        target,
-        { method: request.method, headers, timeout: 180000 },
-        (result) => {
-          const responseHeaders = {
-            "Content-Type": result.headers["content-type"] || "application/json",
-            "Cache-Control": "no-store",
-          }
-          if (result.headers["x-request-id"])
-            responseHeaders["X-Request-ID"] = result.headers["x-request-id"]
-          response.writeHead(result.statusCode || 502, responseHeaders)
-          result.pipe(response)
-        },
-      )
-      proxy.on("timeout", () => proxy.destroy(new Error("MAP request timed out.")))
-      proxy.on("error", () => {
-        if (!response.headersSent)
-          json(response, 502, "MAP is unavailable. Check the backend service.")
-        else response.destroy()
-      })
-      request.pipe(proxy)
-      return
-    } catch (error) {
-      console.error("MAP target/authentication setup failed:", error.message)
-      json(response, 502, "MAP authentication or app target is unavailable. Check the frontend app identity and MAP app resource permission.")
-      return
-    }
+  const service = findService(pathname, services)
+  if (service) {
+    const target = upstreamUrl(service, pathname, url.search)
+    const client = target.protocol === "https:" ? https : http
+    const proxy = client.request(
+      target,
+      {
+        method: request.method,
+        headers: upstreamHeaders(service, request.headers),
+        timeout: 180000,
+      },
+      (result) => {
+        response.writeHead(result.statusCode || 502, {
+          "Content-Type": result.headers["content-type"] || "application/json",
+          "Cache-Control": "no-store",
+        })
+        result.pipe(response)
+      },
+    )
+    proxy.on("timeout", () =>
+      proxy.destroy(new Error(service.label + " request timed out.")),
+    )
+    proxy.on("error", () => {
+      if (!response.headersSent)
+        json(
+          response,
+          502,
+          service.label + " is unavailable. Check the backend service.",
+        )
+      else response.destroy()
+    })
+    request.pipe(proxy)
+    return
   }
   if (pathname.startsWith("/api/")) {
     json(response, 404, "Unknown service.")
@@ -203,6 +118,8 @@ const server = http.createServer(async (request, response) => {
   else fs.createReadStream(target).pipe(response)
 })
 const port = Number(process.env.DATABRICKS_APP_PORT || process.env.PORT || 8100)
-server.listen(port, process.env.FRONTEND_HOST || "127.0.0.1", () =>
-  console.log("CAPA.AI frontend listening on port " + port),
-)
+server.listen(port, process.env.FRONTEND_HOST || "127.0.0.1", () => {
+  console.log("CAPA.AI frontend listening on port " + port)
+  for (const service of services)
+    console.log("  " + service.label + " -> " + service.target.origin)
+})

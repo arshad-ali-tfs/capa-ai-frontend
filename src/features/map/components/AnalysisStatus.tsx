@@ -1,7 +1,10 @@
-import { useState } from "react"
+import { useId, useState } from "react"
+import { HelpTooltip } from "@/shared/components"
 import { useMapData } from "../MapDataProvider"
 import { formatDate } from "../utils"
+import { mapHelp } from "../helpText"
 export function AnalysisStatus() {
+  const runSelectId = useId()
   const [detailsOpen, setDetailsOpen] = useState(false)
   const { analysis, refresh, refreshing, refreshError, lastChecked, editing,
     runs, runsError, selectedRun, selectRun } =
@@ -12,20 +15,25 @@ export function AnalysisStatus() {
       className="text-xs text-suite-muted"
     >
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p>
-          <strong className="text-suite-ink">
-            {analysis.recordCount.toLocaleString()} analysed{" "}
-            {analysis.recordCount === 1 ? "record" : "records"}
-          </strong>
-          {analysis.sourceRecordCount !== null
-            ? ` · ${analysis.sourceRecordCount.toLocaleString()} records in source snapshot`
-            : " · source coverage unavailable"}
-          . Filters apply to this analysis.
-        </p>
+        <div className="flex min-w-0 items-center gap-1">
+          <p>
+            <strong className="text-suite-ink">
+              {analysis.recordCount.toLocaleString()} analysed{" "}
+              {analysis.recordCount === 1 ? "record" : "records"}
+            </strong>
+            {analysis.sourceRecordCount !== null
+              ? ` · ${analysis.sourceRecordCount.toLocaleString()} records in source snapshot`
+              : " · source coverage unavailable"}
+            . Filters apply to this analysis.
+          </p>
+          <HelpTooltip label="Analysis coverage">{mapHelp.coverage}</HelpTooltip>
+        </div>
         <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-3 lg:w-auto">
-          <label className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-none">
-            <span className="shrink-0 font-bold">Analysis run</span>
+          <div className="flex w-full min-w-0 items-center gap-1 sm:w-auto sm:flex-none">
+            <label htmlFor={runSelectId} className="shrink-0 font-bold">Analysis run</label>
+            <HelpTooltip label="Analysis run">{mapHelp.run}</HelpTooltip>
             <select
+              id={runSelectId}
               aria-label="Analysis run"
               value={selectedRun}
               disabled={refreshing || editing}
@@ -44,7 +52,7 @@ export function AnalysisStatus() {
                 </option>
               ))}
             </select>
-          </label>
+          </div>
           <button
             type="button"
             aria-label="Analysis details"
@@ -71,6 +79,9 @@ export function AnalysisStatus() {
           : "Latest completed analysis"}{" "}
         · <span title={analysis.runId}>Run {analysis.runId.slice(0, 8)}</span>
         {lastChecked ? ` · Checked ${formatDate(lastChecked, true)}` : ""}
+        {analysis.sourceResolution === "verified_equivalent_export"
+          ? " · Source metadata restored from a verified equivalent export."
+          : ""}
       </p>
       {analysis.sourceMode === "synthetic" && (
         <p className="mt-2 font-bold text-warn-ink">

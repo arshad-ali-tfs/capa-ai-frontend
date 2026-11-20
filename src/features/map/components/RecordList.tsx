@@ -1,7 +1,8 @@
-import { AppLink, Badge, EmptyState } from "@/shared/components"
+import { AppLink, Badge, EmptyState, HelpLabel, HelpTooltip } from "@/shared/components"
 import { navigateFromRow } from "@/shared/lib/navigation"
 import type { DeviationRecord } from "../types"
 import { formatDate, recordPath } from "../utils"
+import { mapHelp } from "../helpText"
 export function RecordList({
   records,
   showCreated = false,
@@ -22,11 +23,9 @@ export function RecordList({
   )
   const warning = (record: DeviationRecord) =>
     record.warnings.length > 0 ? (
-      <span
-        className="mt-1 block text-xs font-bold text-warn-ink"
-        title={record.warnings.join(" ")}
-      >
-        {record.clusterId ? "Needs review" : "Unassigned"}
+      <span className="mt-1 flex items-center gap-0.5 text-xs font-bold text-warn-ink">
+        <span>{record.clusterId ? "Needs review" : "Unassigned"}</span>
+        <HelpTooltip label={`Review information for ${record.id}`}>{record.warnings.join(" ")}</HelpTooltip>
       </span>
     ) : null
   return (
@@ -37,19 +36,21 @@ export function RecordList({
         </caption>
         <thead>
           <tr>
-            <th scope="col" className="w-[16%]">
-              Record ID
+            <th scope="col" aria-label="Record ID" className="w-[18%]">
+              <HelpLabel label="Record ID">{mapHelp.recordId}</HelpLabel>
             </th>
-            <th scope="col" className="w-[18%]">
-              Site
+            <th scope="col" aria-label="Site" className="w-[18%]">
+              <HelpLabel label="Site">{mapHelp.site}</HelpLabel>
             </th>
-            <th scope="col" className="w-[14%]">
-              Criticality
+            <th scope="col" aria-label="Criticality" className="w-[18%]">
+              <HelpLabel label="Criticality">{mapHelp.criticality}</HelpLabel>
             </th>
-            <th scope="col" className="w-[17%]">
-              Status
+            <th scope="col" aria-label="Status" className="w-[16%]">
+              <HelpLabel label="Status">{mapHelp.status}</HelpLabel>
             </th>
-            <th scope="col">{showCreated ? "Created" : "Short description"}</th>
+            <th scope="col" aria-label={showCreated ? "Created" : "Short description"}>
+              <HelpLabel label={showCreated ? "Created" : "Short description"}>{showCreated ? mapHelp.created : mapHelp.description}</HelpLabel>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -83,19 +84,22 @@ export function RecordList({
                 {link(record)}
                 {warning(record)}
               </div>
-              <Badge>{record.criticality}</Badge>
+              <div className="flex items-center gap-0.5">
+                <Badge>{record.criticality}</Badge>
+                <HelpTooltip label="Criticality">{mapHelp.criticality}</HelpTooltip>
+              </div>
             </div>
             <p className="mt-2 break-words text-sm">
               {record.shortDescription}
             </p>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-              <dt className="text-suite-muted">Site</dt>
+              <dt className="text-suite-muted"><HelpLabel label="Site">{mapHelp.site}</HelpLabel></dt>
               <dd>{record.site}</dd>
-              <dt className="text-suite-muted">Status</dt>
+              <dt className="text-suite-muted"><HelpLabel label="Status">{mapHelp.status}</HelpLabel></dt>
               <dd>{record.status}</dd>
               {showCreated && (
                 <>
-                  <dt className="text-suite-muted">Created</dt>
+                  <dt className="text-suite-muted"><HelpLabel label="Created">{mapHelp.created}</HelpLabel></dt>
                   <dd>{formatDate(record.createdLabel)}</dd>
                 </>
               )}

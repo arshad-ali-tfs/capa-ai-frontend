@@ -54,6 +54,21 @@
 }
 
 @layer components {
+  .map-workspace-content {
+    container: map-workspace / inline-size;
+  }
+  .map-kpi-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    align-items: stretch;
+  }
+  .map-cluster-table {
+    display: none;
+  }
+  .map-cluster-cards {
+    display: block;
+  }
   .map-primary,
   .map-secondary {
     display: inline-flex;
@@ -128,6 +143,27 @@
   .map-source-scroll {
     scrollbar-gutter: stable;
     overflow-anchor: none;
+  }
+}
+
+@container map-workspace (min-width: 560px) {
+  .map-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container map-workspace (min-width: 1040px) {
+  .map-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container map-workspace (min-width: 840px) {
+  .map-cluster-table {
+    display: table;
+  }
+  .map-cluster-cards {
+    display: none;
   }
 }
 

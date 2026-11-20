@@ -2,6 +2,8 @@ command: ['npm', 'run', 'start']
 env:
   - name: FRONTEND_HOST
     value: '0.0.0.0'
-  - name: MAP_API_TARGET
-    valueFrom: map-api-target
-  # The Databricks app resource supplies the backend app name. server.mjs resolves it to a URL.
+  # Configure the deployed backend URLs; the list of services is in
+  # config/serviceRegistry.mjs.
+  #   MAP_API_TARGET, MATCH_API_TARGET, AUTHOR_API_TARGET
+  # Supply app-to-app authentication through server-side secret/environment configuration:
+  #   MAP_API_BEARER_TOKEN, MATCH_API_BEARER_TOKEN, AUTHOR_API_BEARER_TOKEN
