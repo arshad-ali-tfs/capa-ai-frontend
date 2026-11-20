@@ -1,3 +1,4 @@
+import { SourceInsights } from "../components/SourceInsights"
 import { ClusterGroups } from "../components/ClusterGroups"
 import {
   FilterPanel,
@@ -54,8 +55,15 @@ export function OverviewScreen({
         status={`Analysis completed ${formatDate(refreshedAt, true)}`}
       />
       <AnalysisStatus />
-      <GuidedWorkspace step={1}>
+      <section aria-labelledby="deviation-insights-heading" className="map-workspace-content mb-5 min-w-0 rounded-2xl border border-suite-line bg-suite-surface/50 p-3 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div><h2 id="deviation-insights-heading" className="text-lg font-bold">Deviation insights</h2><p className="mt-1 text-xs leading-5 text-suite-muted">Closure, criticality, DR types and CAPA performance for your current analysis view.</p></div>
+          <span className="rounded-full border border-suite-line bg-white px-3 py-1.5 text-xs font-bold tabular-nums text-suite-slate">{filtered.length.toLocaleString()} analysed deviations · current filters</span>
+        </div>
         <OverviewMetrics records={filtered} capas={capas} sourceAvailable={analysis.sourceAvailable} />
+        <div className="mt-4"><SourceInsights runId={analysis.runId} snapshotId={analysis.resolvedSnapshotId ?? analysis.snapshotId} refreshKey={data.lastChecked} /></div>
+      </section>
+      <GuidedWorkspace step={1}>
         <FilterPanel
           tooltip={mapHelp.filters}
           filters={filters}
@@ -66,7 +74,7 @@ export function OverviewScreen({
           }))}
           onChange={onFilterChange}
           onClear={onClear}
-          primaryCount={7}
+          primaryCount={4}
           resultLabel={`${visible.length} clusters · ${filtered.length} ${filtered.length === 1 ? "record" : "records"}`}
         />
         <ClusterGroups clusters={clusters} records={groupScope} selected={filters.clusterGroup} onChange={value=>onFilterChange("clusterGroup",value)} />

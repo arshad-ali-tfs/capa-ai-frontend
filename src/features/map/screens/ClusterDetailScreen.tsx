@@ -72,7 +72,7 @@ export function ClusterDetailScreen({
           }))}
           onChange={onFilterChange}
           onClear={onClear}
-          primaryCount={7}
+          primaryCount={4}
           resultLabel={`${visible.length} ${visible.length === 1 ? "record" : "records"}`}
         />
         {!!cluster.warnings?.length && (
