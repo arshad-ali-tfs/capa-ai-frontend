@@ -49,6 +49,8 @@ export async function requestJson<T>(
   try {
     response = await fetch(buildApiUrl(path), { ...init, headers })
   } catch (error) {
+    if (init.signal?.aborted || (error instanceof DOMException && error.name === "AbortError"))
+      throw error
     console.error("[MAP API] Network request failed", {
       method,
       path: diagnosticPath(path),
