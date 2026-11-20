@@ -62,7 +62,7 @@ function MapRouteContent({ route }: { route: MapRoute }) {
     setFilters(next)
     const params = new URLSearchParams()
     const current=new URLSearchParams(window.location.search)
-    for(const key of ["theme","review","sort","clusterView"]) if(current.has(key))params.set(key,current.get(key)!)
+    for(const key of ["review","sort","clusterView"]) if(current.has(key))params.set(key,current.get(key)!)
     if (selectedRun) params.set("run", selectedRun)
     for (const [key, value] of Object.entries(next))
       if (value !== "All") params.set(key, value)

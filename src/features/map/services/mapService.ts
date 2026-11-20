@@ -1,3 +1,4 @@
+import { dueStatusLabels, validCalendarDate } from "../deadlines"
 import { mapApi } from "@/shared/api/clients"
 import type { CurationChange, MapDataset, MapRun, RecordAnnotation, ReviewDraft } from "../types"
 const invalid = () =>
@@ -61,6 +62,7 @@ export function validateDataset(value: unknown): MapDataset {
     !["configured", "latest_completed"].includes(analysis.selection)
   )
     throw invalid()
+  if (analysis.deadlineAsOf !== undefined && !validCalendarDate(analysis.deadlineAsOf)) throw invalid()
   const ids = new Set<string>(),
     clusterIds = new Set<string>()
   const clusterRecordCounts = new Map<string, number>()
@@ -77,6 +79,7 @@ export function validateDataset(value: unknown): MapDataset {
       !Array.isArray(c.capas)
     )
       throw invalid()
+    if (c.parentTheme !== undefined && (typeof c.parentTheme !== "string" || !c.parentTheme.trim() || c.parentTheme.length > 200)) throw invalid()
     clusterIds.add(c.id)
     if (["contextSource", "titleSource", "analysisContext", "historicalContext"].some(key => c[key] !== undefined)) {
       const sources = ["current_analysis", "historical", "unavailable", "reviewed"]
@@ -144,6 +147,13 @@ export function validateDataset(value: unknown): MapDataset {
       )
     )
       throw invalid()
+    if (["dueDate", "closedDate", "dueStatus"].some(key => r[key] !== undefined)) {
+      if (!["dueDate", "closedDate"].every(key => r[key] === null || validCalendarDate(r[key])) ||
+        typeof r.dueStatus !== "string" || !Object.hasOwn(dueStatusLabels,r.dueStatus)) throw invalid()
+      if (["closed_on_time", "closed_late"].includes(r.dueStatus) &&
+        (!r.dueDate || !r.closedDate || (r.dueStatus === "closed_on_time" ? r.closedDate > r.dueDate : r.closedDate <= r.dueDate))) throw invalid()
+      if (["open_overdue", "open_within_due"].includes(r.dueStatus) && (!r.dueDate || r.closedDate !== null)) throw invalid()
+    }
     validateAnnotation(r.annotation)
     if (r.fiveWh !== undefined && (
       !object(r.fiveWh) ||

@@ -259,3 +259,12 @@ MAP review warnings come from the backend. Close scores do not trigger Needs rev
 The record review screen includes a 5W1H extraction panel below the source narrative. It shows the six saved AI output categories for the selected record and analysis. Unavailable categories are labelled clearly. This reads existing results without rerunning the pipeline or calling the model.
 
 Cluster context shows the saved AI summary for the selected analysis, with a separate expandable historical reference where available. The summary covers all records in that saved cluster; changing filters does not regenerate it. Historical cluster names stay stable, with the saved analysis title used when a historical name is missing. Summaries and confidence labels remain AI output for review, not measured accuracy or approved historical definitions. Older results without a saved analysis summary fall back explicitly to the historical reference or an unavailable state.
+
+
+## MAP deadlines, CAPA filters and cluster groups
+
+On-time closure replaces Active clusters. For Minor, Major and Critical, it shows closures on/before the recorded DATE_TO_CLOSE divided by assessable closed deviations in the current view. DATE_CLOSED supplies the closure date. Same-day closure is on time. Cancelled/open records and missing, invalid or contradictory date/status data are excluded; unavailable rates display a dash. The recorded deadline can already include extensions; original deadlines are not reconstructed.
+
+CAPA linkage and CAPA status filters select the deviation cohort through retained parent/root-parent links. The CAPA KPI continues to count all distinct CAPAs linked to that resulting cohort. Due-date status distinguishes closed late, open overdue and on-time records; open overdue uses the current UTC date and the saved source status. Filters and cluster groups remain in links across details/evidence and reload, and Clear all resets them together.
+
+Cluster groups organize the detailed patterns into up to 12 suggested categories. Selecting a group narrows the records and KPIs while retaining the original analysis assignments and outputs. Missing source data is shown explicitly.
