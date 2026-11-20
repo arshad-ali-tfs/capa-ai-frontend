@@ -13,7 +13,7 @@ export function OverviewMetrics({ records, capas, sourceAvailable, activeCluster
 }) {
   const metrics = overviewMetrics(records, capas, sourceAvailable)
   const count = (value: number) => value.toLocaleString()
-  const { total, implemented } = metrics
+  const { total, implemented, raised } = metrics
   return (
     <section aria-label="Analysis KPIs" className="map-kpi-grid">
       <MetricCard label="Active clusters" value={count(activeClusters)} help="Within the filtered analysis" tooltip={mapHelp.activeClusters}>
@@ -22,13 +22,13 @@ export function OverviewMetrics({ records, capas, sourceAvailable, activeCluster
       <CriticalityMetric metrics={metrics} />
       <TopDrTypeMetric metrics={metrics} />
       <MetricCard
-        label="CAPA implemented"
-        value={implemented === null ? "Not available" : <>{count(implemented)}<span className="text-lg font-normal text-suite-muted"> / {count(total)}</span></>}
+        label="CAPA implemented / raised"
+        value={implemented === null || raised === null ? "Not available" : <>{count(implemented)}<span className="text-lg font-normal text-suite-muted"> / {count(raised)}</span></>}
         valueSize={implemented === null ? "text" : "number"}
-        help={implemented === null ? total ? "CAPA source links unavailable" : "No deviations in this view" : "At least one CAPA Closed - Done"}
+        help={implemented === null ? total ? "CAPA source links unavailable" : "No deviations in this view" : raised ? "Distinct linked CAPAs · source status Closed - Done" : "No linked CAPAs retained in this view"}
         tooltip={mapHelp.capaImplemented}
       >
-        {implemented !== null && <p className="mt-1 text-sm leading-5 font-bold tabular-nums text-suite-blue">{formatShare(implemented, total)} <span className="font-normal text-suite-muted">of deviations</span></p>}
+        {implemented !== null && raised!==null && <p className="mt-1 text-sm leading-5 font-bold tabular-nums text-suite-blue">{formatShare(implemented, raised)} <span className="font-normal text-suite-muted">of CAPAs raised</span></p>}
       </MetricCard>
     </section>
   )

@@ -1,7 +1,4 @@
-import { navigateTo } from "@/shared/lib/navigation"
 import {
-  BarList,
-  DisclosurePanel,
   FilterPanel,
   PageHeading,
   Panel,
@@ -69,22 +66,9 @@ export function OverviewScreen({
           primaryCount={4}
           resultLabel={`${visible.length} clusters · ${filtered.length} ${filtered.length === 1 ? "record" : "records"}`}
         />
-        <DisclosurePanel
-          title="Deviation volume by cluster"
-          help="Compare record counts within the current filters."
-        >
-          <BarList
-            items={visible.map(({ cluster, records: members }) => ({
-              id: cluster.id,
-              label: cluster.shortTitle,
-              fullLabel: cluster.title,
-              value: sumVolume(members),
-            }))}
-            onSelect={(id) => navigateTo(`/map/clusters/${id}`)}
-          />
-        </DisclosurePanel>
         <ClusterSummary
           groups={visible}
+          viewTotal={sumVolume(filtered)}
           emptyMessage={
             !records.length
               ? "This completed analysis contains no records."

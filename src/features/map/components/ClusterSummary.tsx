@@ -5,6 +5,8 @@ import { criticalityMetrics, formatShare } from "../overviewMetrics"
 import type { Cluster, DeviationRecord } from "../types"
 import { formatSimilarity, meanSimilarity } from "../utils"
 import { CriticalityBreakdown, CriticalityCount } from "./CriticalityMetric"
+import { useState } from "react"
+import { ClusterSeverityChart } from "./ClusterSeverityChart"
 
 interface Group { cluster: Cluster; records: DeviationRecord[] }
 
@@ -18,10 +20,12 @@ function ClusterTitle({ cluster, records }: Group) {
   </>
 }
 
-export function ClusterSummary({ groups, emptyMessage }: { groups: Group[]; emptyMessage: string }) {
+export function ClusterSummary({ groups, emptyMessage, viewTotal }: { groups: Group[]; emptyMessage: string;viewTotal?:number }) {
+  const [view,setView]=useState(()=>new URLSearchParams(window.location.search).get("clusterView")==="chart"?"chart":"table")
+  function changeView(value:string){setView(value);const params=new URLSearchParams(window.location.search);value==="chart"?params.set("clusterView","chart"):params.delete("clusterView");window.history.replaceState({},"",window.location.pathname+(params.size?"?"+params:""))}
   const rows = groups.map(group => ({ ...group, metrics: criticalityMetrics(group.records), similarity: formatSimilarity(meanSimilarity(group.records)) }))
-  return <Panel title="Cluster summary · Top patterns" help="Severity columns show count and share within the current filters. Select a cluster to inspect its records. Similarity is not measured accuracy.">
-    {rows.length ? <>
+  return <Panel title="Cluster summary · Top patterns" help="Counts and shares follow the current filters. Switch between the table and severity chart to inspect the same clusters. Similarity is not measured accuracy." headerActions={<div role="group" aria-label="Cluster summary view" className="inline-flex shrink-0 rounded-lg border border-suite-line bg-suite-surface p-0.5">{["table","chart"].map(value=><button key={value} type="button" aria-pressed={view===value} onClick={()=>changeView(value)} className={`min-h-9 rounded-md px-3 text-xs font-bold focus-visible:outline-2 focus-visible:outline-brand ${view===value?"bg-white text-suite-blue shadow-sm":"text-suite-muted hover:text-suite-ink"}`}>{value==="table"?"Table":"Chart"}</button>)}</div>}>
+    {rows.length ? view==="chart" ? <ClusterSeverityChart groups={groups} viewTotal={viewTotal}/> : <>
       <table className="map-table map-cluster-table">
         <caption className="sr-only">Clusters in the selected analysis, with separate Minor, Major and Critical counts and percentages</caption>
         <colgroup>
