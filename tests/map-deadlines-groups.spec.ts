@@ -40,6 +40,7 @@ test("closure KPI shows criticality rates and excludes open records without inve
 
 test("CAPA and deadline filters combine, persist through groups/detail/evidence/reload, and clear together",async({page})=>{
   await mock(page);await page.goto("/map")
+  await page.getByText(/^More filters \(/).click()
   await page.getByRole("combobox",{name:"CAPA linkage",exact:true}).selectOption("Linked CAPA")
   await page.getByRole("combobox",{name:"CAPA status",exact:true}).selectOption("Implementation")
   await page.getByRole("combobox",{name:"Due-date status",exact:true}).selectOption("Closed late")
@@ -56,6 +57,7 @@ test("CAPA and deadline filters combine, persist through groups/detail/evidence/
   await expect(page.getByRole("combobox",{name:"Due-date status",exact:true})).toHaveValue("Closed late")
   await expect(page.getByRole("button",{name:/^Analytical testing/})).toHaveAttribute("aria-pressed","true")
   await page.getByRole("button",{name:"Clear all",exact:true}).click()
+  await page.getByText(/^More filters \(/).click()
   await expect(page.getByRole("combobox",{name:"CAPA status",exact:true})).toHaveValue("All")
   await expect(page.getByRole("button",{name:/^All groups/})).toHaveAttribute("aria-pressed","true")
   expect(new URL(page.url()).searchParams.has("clusterGroup")).toBe(false)
@@ -63,6 +65,7 @@ test("CAPA and deadline filters combine, persist through groups/detail/evidence/
 
 test("open overdue and no-link filters preserve empty and missing-source states honestly",async({page})=>{
   const data=value();await mock(page,data);await page.goto("/map")
+  await page.getByText(/^More filters \(/).click()
   await page.getByRole("combobox",{name:"Due-date status",exact:true}).selectOption("Open overdue")
   await page.getByRole("combobox",{name:"CAPA linkage",exact:true}).selectOption("No retained CAPA link")
   await expect(page.getByRole("region",{name:"Analysis KPIs",exact:true})).toContainText("Out of 1 deviation")
@@ -72,6 +75,7 @@ test("open overdue and no-link filters preserve empty and missing-source states 
   data.analysis.sourceAvailable=false
   for(const r of data.records){delete r.dueDate;delete r.closedDate;delete r.dueStatus}
   await page.reload()
+  await page.getByText(/^More filters \(/).click()
   await expect(page.getByRole("combobox",{name:"CAPA linkage",exact:true})).toBeDisabled()
   await expect(page.getByRole("combobox",{name:"Due-date status",exact:true})).toBeDisabled()
   await expect(page.getByText("No closed deviations with valid due and closure dates.",{exact:true})).toBeVisible()
