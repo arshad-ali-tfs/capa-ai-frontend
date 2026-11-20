@@ -7,7 +7,7 @@
  *
  *   label          Display name used in messages.
  *   defaultTarget  Where the service listens locally.
- *   targetEnv      Server-side variable holding the service URL.
+ *   targetEnv      Server-side URL, or app-resource name inside Databricks Apps.
  *   tokenEnv       Server-side variable holding an optional bearer token.
  *   browserUrlEnv  Optional build-time variable. When set, the browser calls
  *                  the service directly instead of through the frontend

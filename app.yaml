@@ -2,8 +2,12 @@ command: ['npm', 'run', 'start']
 env:
   - name: FRONTEND_HOST
     value: '0.0.0.0'
-  # Configure the deployed backend URLs; the list of services is in
-  # config/serviceRegistry.mjs.
-  #   MAP_API_TARGET, MATCH_API_TARGET, AUTHOR_API_TARGET
-  # Supply app-to-app authentication through server-side secret/environment configuration:
-  #   MAP_API_BEARER_TOKEN, MATCH_API_BEARER_TOKEN, AUTHOR_API_BEARER_TOKEN
+  - name: MAP_API_TARGET
+    valueFrom: map-api-target
+  # Add the MAP backend as an App resource named map-api-target, with CAN_USE.
+  # Databricks supplies its app name; the server resolves the URL and uses the
+  # injected app identity for OAuth acquisition and renewal.
+  # Configure MATCH_API_TARGET / AUTHOR_API_TARGET as URLs or add equivalent
+  # App resources when deploying those services. Unconfigured services return
+  # an actionable error without preventing the other workspaces from running.
+  # Optional per-service *_API_BEARER_TOKEN settings override managed OAuth.

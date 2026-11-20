@@ -62,13 +62,10 @@ test("mockup panels, broad row targets and review cues remain usable at each bre
   await expect(coverage).toContainText("Configured analysis")
   await expect(page.locator("#analysis-details")).toBeVisible()
   await page.getByRole("button", { name: "Analysis details", exact: true }).click()
-  const table = await page.getByRole("heading", { name: "Cluster summary · Top patterns", exact: true }).locator("..").boundingBox()
-  const chart = await page.locator("details").filter({ hasText: "Deviation volume by cluster" }).boundingBox()
-  if (page.viewportSize()!.width >= 1280) {
-    expect(chart!.y + chart!.height).toBeLessThanOrEqual(table!.y)
-    expect(Math.abs(table!.width - chart!.width)).toBeLessThan(2)
-    expect((await coverage.boundingBox())!.height).toBeLessThan(45)
-  }
+  const toggle=page.getByRole("group",{name:"Cluster summary view",exact:true})
+  await toggle.getByRole("button",{name:"Chart",exact:true}).click()
+  await expect(page.getByRole("region",{name:"Deviation volume by cluster",exact:true})).toBeVisible()
+  await toggle.getByRole("button",{name:"Table",exact:true}).click()
   await page.getByRole("link", { name: `Open ${cluster.title} cluster detail`, exact: true }).click()
   const included = await page.getByRole("heading", { name: "Included deviations", exact: true }).locator("..").boundingBox()
   const capa = await page.locator("details").filter({ hasText: "Related CAPA context" }).boundingBox()

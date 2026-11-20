@@ -1,35 +1,44 @@
-// Server-side helpers shared by the Vite dev/preview proxy and server.mjs.
-// They turn the service registry plus environment variables into proxy rules.
+// Server-side configuration shared by Vite and the production server.
 import { SERVICES } from "./serviceRegistry.mjs"
 
 /**
- * Read every service's target URL and optional token from the environment.
- * Throws a clear error when a target is not an HTTP(S) URL without credentials.
+ * Normalize an explicit HTTP(S) address, including a host without a scheme.
+ * Credentials must always be supplied separately from the URL.
  */
+export function httpUrl(value, variableName) {
+  const raw = String(value || "").trim()
+  const invalid = () =>
+    new Error(`${variableName} must be an HTTP(S) URL without credentials.`)
+  let url
+  try {
+    url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`)
+  } catch {
+    throw invalid()
+  }
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
+    throw invalid()
+  return url
+}
+
+/** Read explicit URLs or Databricks app-resource names without network I/O. */
 export function resolveServices(env = process.env) {
   return Object.entries(SERVICES).map(([name, definition]) => {
     const raw =
       (env[definition.targetEnv] || "").trim() || definition.defaultTarget
-    const invalid = () =>
-      new Error(
-        `${definition.targetEnv} must be an HTTP(S) URL without credentials.`,
+    const isAppName = /^[a-z\d][a-z\d-]*$/i.test(raw) && raw !== "localhost"
+    const appName = isAppName && env.DATABRICKS_APP_NAME ? raw : ""
+    if (isAppName && !appName)
+      throw new Error(
+        `${definition.targetEnv} must be an HTTP(S) URL without credentials outside Databricks Apps.`,
       )
-    let target
-    try {
-      target = new URL(raw)
-    } catch {
-      throw invalid()
-    }
-    if (
-      !["http:", "https:"].includes(target.protocol) ||
-      target.username ||
-      target.password
-    )
-      throw invalid()
+    const target = appName ? null : httpUrl(raw, definition.targetEnv)
     return {
       name,
       label: definition.label,
       target,
+      appName,
+      targetEnv: definition.targetEnv,
+      configured: Boolean((env[definition.targetEnv] || "").trim()),
       token: (env[definition.tokenEnv] || "").trim(),
       routes: definition.routes,
     }
@@ -63,26 +72,4 @@ export function upstreamHeaders(service, requestHeaders = {}) {
     headers["content-type"] = requestHeaders["content-type"]
   if (service.token) headers.authorization = "Bearer " + service.token
   return headers
-}
-
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-
-/** Vite `server.proxy` / `preview.proxy` rules for every service route. */
-export function viteProxy(services) {
-  const rules = {}
-  for (const service of services) {
-    for (const route of service.routes) {
-      const key = route.endsWith("/")
-        ? route
-        : `^${escapeRegExp(route)}(?:\\?.*)?$`
-      rules[key] = {
-        target: service.target.href,
-        changeOrigin: true,
-        ...(service.token
-          ? { headers: { Authorization: "Bearer " + service.token } }
-          : {}),
-      }
-    }
-  }
-  return rules
 }

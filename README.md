@@ -23,9 +23,9 @@ A deviation is a recorded departure from an expected process. CAPA means correct
 | Repository | Responsibility | Port |
 |---|---|---|
 | **This repository: common frontend** | Browser screens, navigation and API presentation | 8100 |
-| [MAP backend](https://github.com/rahul-jha-tfs/capa-ai-map-backend) | Analyses, clusters, source evidence and saved notes | 8101 |
-| [MATCH backend](https://github.com/rahul-jha-tfs/capa-ai-match-backend) | Similar-record search API | 8102 |
-| [AUTHOR backend](https://github.com/rahul-jha-tfs/capa-ai-author-backend) | Investigation and CAPA authoring API | 8103 |
+| [MAP backend](https://github.com/arshad-ali-tfs/capa-ai-map-backend) | Analyses, clusters, source evidence and saved notes | 8101 |
+| [MATCH backend](https://github.com/arshad-ali-tfs/capa-ai-match-backend) | Similar-record search API | 8102 |
+| [AUTHOR backend](https://github.com/arshad-ali-tfs/capa-ai-author-backend) | Investigation and CAPA authoring API | 8103 |
 
 The backends are independent services using copies of the same versioned source export. The frontend reads MAP and MATCH over HTTP; it does not read the CSV/database directly or run models. AUTHOR and the other planned-module cards remain placeholders.
 
@@ -85,14 +85,14 @@ In the MAP backend repository, start its configured Docker service:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Run-Map.ps1 -ServeOnly
 ```
 
-The launcher handles fresh Docker setup and source/model checks. MAP needs a source snapshot and completed analysis to display. To reuse existing results without another paid run, restore the corresponding saved run folders and source snapshots under the backend data directory before starting. For a new analysis, follow the pipeline options in the backend README. A fresh backend clone does not include this workstation's saved results; follow the [MAP setup guide](https://github.com/rahul-jha-tfs/capa-ai-map-backend#run-locally).
+The launcher handles fresh Docker setup and source/model checks. MAP needs a source snapshot and completed analysis to display. To reuse existing results without another paid run, restore the corresponding saved run folders and source snapshots under the backend data directory before starting. For a new analysis, follow the pipeline options in the backend README. A fresh backend clone does not include this workstation's saved results; follow the [MAP setup guide](https://github.com/arshad-ali-tfs/capa-ai-map-backend#run-locally).
 
 ### 2. Install and run the frontend
 
 For a fresh checkout:
 
 ```powershell
-git clone https://github.com/rahul-jha-tfs/capa-ai-frontend.git
+git clone https://github.com/arshad-ali-tfs/capa-ai-frontend.git
 cd capa-ai-frontend
 npm ci
 npm run build
@@ -152,7 +152,9 @@ Unsaved notes pause refresh and prompt before leaving. Failed refreshes keep the
 ### Understand the numbers
 
 - **Deviations:** records in the current filtered analysis.
-- **Major/Critical:** share whose source criticality is Major or Critical, using the current filtered records; the UI does not predict severity.
+- **Criticality:** separate Minor, Major and Critical counts and shares of the filtered deviations, with unknown classifications identified; the UI does not predict severity.
+- **Top DR types:** the top three known deviation record types and their cumulative contribution to all filtered deviations, including unknown types in the denominator.
+- **CAPA implemented / raised:** distinct linked CAPAs marked Closed - Done divided by all distinct linked CAPAs raised in the current scope. A CAPA linked to multiple deviations is counted once.
 - **Similarity:** average of available record-level similarities within the group/filter, not clustering accuracy or a probability of correctness.
 - **Source coverage:** analysed record count compared with the available imported source.
 
@@ -197,7 +199,7 @@ This repo currently has **no Dockerfile**. The three backend images are separate
 
 The API service validates the dataset shape before displaying it. HTTP **409** means a saved annotation revision changed; reload the latest version before retrying. Notes live in the MAP backend's `record_annotations.json` under its persistent run folder, not solely in this browser or repository.
 
-The proxy forwards MAP routes only; it is not a gateway for all three backends. Full schemas are in the running [MAP API docs](http://127.0.0.1:8101/docs).
+The proxy forwards only the MAP, MATCH and AUTHOR paths registered in `config/serviceRegistry.mjs`; unknown `/api/` paths return 404. Full MAP schemas are in the running [MAP API docs](http://127.0.0.1:8101/docs).
 
 ## Find your way around
 
@@ -252,7 +254,7 @@ Remove-Item Env:MAP_REAL_DATA
 
 The frontend deploys separately from the backends. [DEPLOYMENT.md](DEPLOYMENT.md) describes Databricks Apps preparation and the `app.yaml` start command.
 
-Build static assets, run the Node server, configure `MAP_API_TARGET` for the deployed MAP URL, and establish server-side app-to-app permissions/authentication. The bearer-token setting does not itself acquire or renew production tokens. Keep model keys in the backend. Local MAP integration is verified; Databricks deployment needs target-workspace checks.
+Build static assets and run the Node server. The existing `app.yaml` uses the Databricks App resource `map-api-target` for `MAP_API_TARGET`; grant the frontend identity CAN_USE on that backend. Targets can be explicit URLs, hostnames, or App resource names inside Databricks Apps. Injected app credentials provide automatic server-side OAuth acquisition and renewal. Optional per-service bearer tokens override managed authentication for that service only. Configure MATCH/AUTHOR targets and permissions when deploying them. Keep model keys in the backends. Local regression checks are verified; Databricks deployment still needs target-workspace acceptance checks.
 
 MAP review warnings come from the backend. Close scores do not trigger Needs review. Missing historical names or descriptions appear once on the cluster detail screen using the cluster's `warnings` array; they do not flag individual records or increase record review counts. Record warnings, including unavailable assignments, remain on the relevant evidence screen. Viewing a warning does not make an LLM call.
 

@@ -1,5 +1,6 @@
 import { defineConfig } from "@playwright/test"
 const baseURL = process.env.CAPA_TEST_BASE_URL || "http://127.0.0.1:8100"
+const productionServer = process.env.CAPA_TEST_SERVER === "production" || !process.env.CAPA_TEST_BASE_URL
 export default defineConfig({
   testDir: "./tests",
   timeout: 60000,
@@ -14,7 +15,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: process.env.CAPA_TEST_BASE_URL ? `npm run dev -- --port ${new URL(baseURL).port} --strictPort` : "npm run start",
+    command: productionServer ? "npm run start" : `npm run dev -- --port ${new URL(baseURL).port} --strictPort`,
+    env: productionServer ? { PORT: new URL(baseURL).port, DATABRICKS_APP_PORT: "", FRONTEND_HOST: "127.0.0.1" } : {},
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 30000,

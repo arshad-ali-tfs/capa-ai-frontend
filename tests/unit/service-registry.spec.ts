@@ -5,7 +5,6 @@ import {
   resolveServices,
   upstreamHeaders,
   upstreamUrl,
-  viteProxy,
 } from "../../config/serverProxy.mjs"
 
 test.describe("service registry", () => {
@@ -49,7 +48,7 @@ test.describe("service registry", () => {
 test.describe("resolveServices", () => {
   test("uses the registry defaults when nothing is configured", () => {
     const services = resolveServices({})
-    expect(services.map((s) => [s.name, s.target.origin])).toEqual([
+    expect(services.map((s) => [s.name, s.target!.origin])).toEqual([
       ["map", "http://127.0.0.1:8101"],
       ["match", "http://127.0.0.1:8102"],
       ["author", "http://127.0.0.1:8103"],
@@ -63,7 +62,7 @@ test.describe("resolveServices", () => {
       MATCH_API_BEARER_TOKEN: " secret ",
     })
     const match = services.find((s) => s.name === "match")!
-    expect(match.target.origin).toBe("https://match.internal.example")
+    expect(match.target!.origin).toBe("https://match.internal.example")
     expect(match.token).toBe("secret")
     expect(services.find((s) => s.name === "map")!.token).toBe("")
   })
@@ -120,19 +119,15 @@ test.describe("routing", () => {
     expect(upstreamHeaders(match, {}).authorization).toBe("Bearer t")
   })
 
-  test("builds a Vite proxy rule for every route", () => {
-    const rules = viteProxy(resolveServices({}))
-    expect(Object.keys(rules).sort()).toEqual(
-      [
-        "/api/v1/author/",
-        "/api/v1/map/",
-        "/api/v1/match/",
-        "^/map/dataset(?:\\?.*)?$",
-      ].sort(),
-    )
-    expect(rules["/api/v1/match/"].target).toBe("http://127.0.0.1:8102/")
-    expect(
-      new RegExp("^/map/dataset(?:\\?.*)?$").test("/map/dataset?x=1"),
-    ).toBe(true)
+  test("accepts app-resource names only in Databricks Apps", () => {
+    const [map] = resolveServices({ DATABRICKS_APP_NAME: "frontend", MAP_API_TARGET: "map-backend" })
+    expect(map.appName).toBe("map-backend")
+    expect(map.target).toBeNull()
+    expect(() => resolveServices({ MAP_API_TARGET: "map-backend" })).toThrow(/outside Databricks Apps/)
+  })
+
+  test("normalizes a deployed hostname without a scheme", () => {
+    const [map] = resolveServices({ MAP_API_TARGET: "map.example.com/apps/map" })
+    expect(map.target!.href).toBe("https://map.example.com/apps/map")
   })
 })

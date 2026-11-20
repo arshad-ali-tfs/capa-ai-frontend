@@ -21,7 +21,7 @@ async function withinViewport(page: Page) {
 
 test("keyboard help is described, dismissible and does not change filters", async ({ page }) => {
   await page.goto("/map")
-  const help = page.getByRole("button", { name: "About CAPA implemented", exact: true })
+  const help = page.getByRole("button", { name: "About CAPA implemented / raised", exact: true })
   await help.focus()
   const tip = page.getByRole("tooltip")
   await expect(tip).toContainText("Closed - Done is used as the completion indicator")
