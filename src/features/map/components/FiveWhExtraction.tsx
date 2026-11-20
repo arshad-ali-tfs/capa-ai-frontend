@@ -1,5 +1,7 @@
 import { useId } from "react"
+import { HelpLabel, HelpTooltip } from "@/shared/components"
 import type { FiveWh } from "../types"
+import { mapHelp } from "../helpText"
 
 const fields: { key: keyof FiveWh; label: string }[] = [
   { key: "who", label: "Who" },
@@ -17,7 +19,10 @@ export function FiveWhExtraction({ value }: { value?: FiveWh }) {
   const hasSavedOutput = value && fields.some(({ key }) => value[key].trim())
   return (
     <section aria-labelledby={titleId} className="min-w-0 rounded-xl border border-suite-line bg-white p-4">
-      <h2 id={titleId} className="text-[15px] font-bold">5W1H extraction</h2>
+      <div className="flex items-center gap-1">
+        <h2 id={titleId} className="text-[15px] font-bold">5W1H extraction</h2>
+        <HelpTooltip label="5W1H extraction">{mapHelp.fiveWh}</HelpTooltip>
+      </div>
       <p className="mt-1 text-xs text-suite-muted">
         Saved AI output for this analysis. Compare with the source narrative.
       </p>
@@ -29,7 +34,7 @@ export function FiveWhExtraction({ value }: { value?: FiveWh }) {
           const missing = unavailable(value?.[key])
           return (
             <div key={key} className="grid min-w-0 grid-cols-1 gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[64px_minmax(0,1fr)] sm:gap-4">
-              <dt className="text-sm font-bold">{label}</dt>
+              <dt className="text-sm font-bold">{key === "why" || key === "how" ? <HelpLabel label={label}>{mapHelp[key]}</HelpLabel> : label}</dt>
               <dd className={`min-w-0 whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]${missing ? " text-suite-muted" : ""}`}>
                 {missing ? "Not available" : value![key]}
               </dd>

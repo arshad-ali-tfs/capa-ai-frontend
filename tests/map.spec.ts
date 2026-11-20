@@ -23,7 +23,7 @@ const sourceTexts = (record: any) => record.sourceSections?.length
   ? record.sourceSections.map((section: any) => section.text)
   : [record.sourceNarrative]
 const metric = (page: Page, label: string) =>
-  page.getByText(label, { exact: true }).locator("..")
+  page.getByRole("region", { name: "Analysis KPIs", exact: true }).getByText(label, { exact: true }).locator("..")
 async function noOverflow(page: Page) {
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
@@ -36,7 +36,7 @@ test.beforeEach(async ({ page }) => {
   if (!real) await mock(page, clone())
 })
 
-test("home exposes MAP and its live coverage without planned-service links", async ({
+test("home links MAP and MATCH, shows MAP's live coverage and has no planned-service links", async ({
   page,
 }, info) => {
   const errors: string[] = []
@@ -47,7 +47,7 @@ test("home exposes MAP and its live coverage without planned-service links", asy
   ).toBeVisible()
   await expect(
     page.getByRole("navigation", { name: "CAPA.AI modules" }).getByRole("link"),
-  ).toHaveText(["Home", "MAP"])
+  ).toHaveText(["Home", "MAP", "MATCH"])
   await page.getByRole("link", { name: "Open MAP", exact: true }).click()
   await expect(
     page.getByRole("heading", { name: /MAP.*Cluster analysis/ }),
@@ -132,32 +132,73 @@ test("site filters carry through cluster, evidence, back navigation and reload",
   )
 })
 
-test("similarities use only filtered records and retain missing values", async ({
+test("overview KPIs use filtered deviations, show the requested breakdowns and remove old cards", async ({
   page,
 }) => {
   test.skip(real, "Controlled boundary values use a fictional response")
   const value = clone()
+  value.records[0].criticality = "Major"
+  value.records[1].criticality = "Minor"
+  value.records[2].criticality = "Critical"
+  value.records[1].drType = "Site Deviation"
+  value.capas = [
+    { id: "DONE-A", description: "Fictional completed action", status: "Closed - Done", recordIds: [value.records[0].id] },
+    { id: "DONE-B", description: "Fictional second completed action", status: "Closed - Done", recordIds: [value.records[0].id] },
+    { id: "CANCELLED", description: "Fictional cancelled action", status: "Closed - Cancelled", recordIds: [value.records[2].id] },
+  ]
   await mock(page, value)
   await page.goto("/map")
   await page
     .getByLabel("Sites", { exact: true })
     .selectOption(value.records[0].site)
-  await expect(metric(page, "Average cluster similarity")).toContainText(
-    "52.50%",
-  )
-  await expect(metric(page, "Average cluster similarity")).toContainText(
-    "not accuracy",
-  )
+  await expect(metric(page, "Criticality")).toContainText("Out of 2 deviations")
+  const severity = (level: string) => metric(page, "Criticality").locator("dt").filter({ hasText: new RegExp(`^${level}$`) }).locator("..").getByRole("definition")
+  await expect(severity("Major")).toHaveText(/^1\s*50\.0%$/)
+  await expect(severity("Minor")).toHaveText(/^0\s*0\.0%$/)
+  await expect(severity("Critical")).toHaveText(/^1\s*50\.0%$/)
+  await expect(metric(page, "Top DR types")).toContainText("Product Deviation")
+  await expect(metric(page, "Top DR types")).toContainText("Top 1 combined · 2 of 2 deviations")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("2 / 3")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("66.7%")
+  for (const label of ["Average cluster similarity", "Top 5 share", "Open cluster"]) {
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0)
+  }
   await page.getByRole("button", { name: "Clear all", exact: true }).click()
+  await expect(metric(page, "Criticality")).toContainText("Out of 3 deviations")
+  await expect(metric(page, "Top DR types")).toContainText("Top 2 combined · 3 of 3 deviations")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("2 / 3")
   value.records.forEach((r: any) => (r.similarity = null))
   value.clusters.forEach((c: any) => (c.match = null))
+  value.analysis.sourceAvailable = false
   await page.getByRole("button", { name: "Refresh data", exact: true }).click()
-  await expect(metric(page, "Average cluster similarity")).toContainText(
-    "Not available",
-  )
-  await expect(metric(page, "Average cluster similarity")).not.toContainText(
-    "0%",
-  )
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("Not available")
+  await noOverflow(page)
+})
+
+test("overview KPIs explain ties and unknown classifications and count unassigned CAPA links", async ({ page }) => {
+  test.skip(real, "KPI boundary cases use fictional data")
+  const value = clone()
+  value.records[0].criticality = "Not provided"
+  value.records[1].criticality = "Unclassified"
+  value.records[2].criticality = "Critical"
+  value.records[0].drType = "Site Deviation"
+  value.records[1].drType = "Product Deviation"
+  value.records[2].drType = "Not provided"
+  value.records[2].clusterId = ""
+  value.capas = [{ id: "UNASSIGNED-CAPA", description: "Fictional completed action", status: "Closed - Done", recordIds: [value.records[2].id] }]
+  await mock(page, value)
+  await page.goto("/map")
+  await expect(metric(page, "Criticality")).toContainText(/Other \/ unknown:\s*2 \(66\.7%\)/)
+  await expect(metric(page, "Top DR types")).toContainText("Top 2 combined")
+  await expect(metric(page, "Top DR types")).toContainText("Top 2 combined · 2 of 3 deviations · 1 unknown")
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("1 / 1")
+  await page.getByRole("button", { name: "About Top DR types", exact: true }).click()
+  await expect(page.getByRole("tooltip")).toContainText("Top three known deviation record types")
+  await page.keyboard.press("Escape")
+  await page.getByRole("combobox", { name: "Criticality", exact: true }).selectOption("Not provided")
+  await expect(metric(page, "Criticality")).toContainText(/Other \/ unknown:\s*1 \(100\.0%\)/)
+  await expect(metric(page, "CAPA implemented / raised")).toContainText("0 / 0")
+  await noOverflow(page)
 })
 
 test("unavailable source filters are disabled and explained", async ({
@@ -337,7 +378,7 @@ test("empty and unassigned batches stay inspectable without invented scores", as
       exact: true,
     }),
   ).toBeVisible()
-  await expect(metric(page, "Average cluster similarity")).toContainText(
+  await expect(metric(page, "CAPA implemented / raised")).toContainText(
     "Not available",
   )
   const record = clone().records[0]
@@ -442,7 +483,7 @@ test("automatic focus refresh pauses during edits and resumes after discard", as
   await expect.poll(() => calls).toBeGreaterThan(initial)
 })
 
-test("deep links and unknown-service routes remain bounded to MAP", async ({
+test("deep links work and unregistered API paths are not forwarded", async ({
   page,
 }) => {
   const value = await data(page),
@@ -455,8 +496,8 @@ test("deep links and unknown-service routes remain bounded to MAP", async ({
   await expect(
     page.getByRole("heading", { name: "Page not found", exact: true }),
   ).toBeVisible()
-  expect((await page.request.get("/api/v1/match/health")).status()).toBe(404)
-  expect((await page.request.get("/api/v1/author/health")).status()).toBe(404)
+  expect((await page.request.get("/api/v1/unknown/health")).status()).toBe(404)
+  expect((await page.request.get("/api/v1/mapx/health")).status()).toBe(404)
 })
 
 test("long narratives retain every character in a keyboard-accessible scroll region", async ({

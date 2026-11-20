@@ -61,6 +61,8 @@ function MapRouteContent({ route }: { route: MapRoute }) {
   function update(next: typeof filters) {
     setFilters(next)
     const params = new URLSearchParams()
+    const chart=new URLSearchParams(window.location.search).get("clusterView")
+    if(chart==="chart")params.set("clusterView",chart)
     if (selectedRun) params.set("run", selectedRun)
     for (const [key, value] of Object.entries(next))
       if (value !== "All") params.set(key, value)

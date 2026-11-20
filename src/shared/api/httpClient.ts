@@ -1,15 +1,21 @@
-export function getApiBaseUrl() {
-  const configured = import.meta.env.VITE_API_BASE_URL
-  if (typeof configured === "string" && configured.trim()) {
-    return configured.trim().replace(/\/+$/, "")
-  }
-  return ""
-}
+import {
+  resolveBaseUrl,
+  serviceLabel,
+  type ServiceName,
+} from "@/shared/config/services"
+import { joinUrl } from "@/shared/config/serviceUrls"
 
-export function buildApiUrl(path: string) {
-  const baseUrl = getApiBaseUrl()
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`
-  return baseUrl ? `${baseUrl}${normalizedPath}` : normalizedPath
+/** A failed request to one of the backend services. status 0 means no response. */
+export class ApiError extends Error {
+  readonly service: ServiceName
+  readonly status: number
+
+  constructor(message: string, service: ServiceName, status: number) {
+    super(message)
+    this.name = "ApiError"
+    this.service = service
+    this.status = status
+  }
 }
 
 function parseJson(text: string): unknown {
@@ -28,52 +34,51 @@ function messageFromPayload(payload: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value)
 }
 
-function diagnosticPath(path: string): string {
-  return path
-    .split("?", 1)[0]
-    .replace(/(\/api\/v1\/map\/runs\/)[a-f0-9]{32}/g, "$1:run_id")
-    .replace(/(\/records\/)[^/]+/g, "$1:record_id")
-}
+/** A JSON client bound to one backend service. */
+export function createServiceClient(service: ServiceName) {
+  const label = serviceLabel(service)
 
-export async function requestJson<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const headers = new Headers(init.headers ?? {})
-  if (init.body != null && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json")
+  const buildUrl = (path: string) => joinUrl(resolveBaseUrl(service), path)
+
+  async function requestJson<T>(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    const url = buildUrl(path)
+    const headers = new Headers(init.headers ?? {})
+    if (init.body != null && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json")
+    }
+
+    let response: Response
+    try {
+      response = await fetch(url, { ...init, headers })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error
+      }
+      throw new ApiError(
+        `${label} is unreachable. Check that the service is running and its address is configured.`,
+        service,
+        0,
+      )
+    }
+
+    const text = await response.text()
+    const payload = text ? parseJson(text) : null
+
+    if (!response.ok) {
+      throw new ApiError(
+        messageFromPayload(payload) ||
+          text ||
+          `${label} request failed with status ${response.status}`,
+        service,
+        response.status,
+      )
+    }
+
+    return (payload ?? {}) as T
   }
 
-  const method = (init.method || "GET").toUpperCase()
-  let response: Response
-  try {
-    response = await fetch(buildApiUrl(path), { ...init, headers })
-  } catch (error) {
-    if (init.signal?.aborted || (error instanceof DOMException && error.name === "AbortError"))
-      throw error
-    console.error("[MAP API] Network request failed", {
-      method,
-      path: diagnosticPath(path),
-      error: error instanceof Error ? error.message : "Unknown network error",
-    })
-    throw error
-  }
-  const text = await response.text()
-  const payload = text ? parseJson(text) : null
-
-  if (!response.ok) {
-    console.error("[MAP API] Request returned an error", {
-      method,
-      path: diagnosticPath(path),
-      status: response.status,
-      requestId: response.headers.get("x-request-id"),
-    })
-    throw new Error(
-      messageFromPayload(payload) ||
-        text ||
-        `Request failed with status ${response.status}`,
-    )
-  }
-
-  return (payload ?? {}) as T
+  return { service, buildUrl, requestJson }
 }

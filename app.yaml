@@ -4,4 +4,10 @@ env:
     value: '0.0.0.0'
   - name: MAP_API_TARGET
     valueFrom: map-api-target
-  # The Databricks app resource supplies the backend app name. server.mjs resolves it to a URL.
+  # Add the MAP backend as an App resource named map-api-target, with CAN_USE.
+  # Databricks supplies its app name; the server resolves the URL and uses the
+  # injected app identity for OAuth acquisition and renewal.
+  # Configure MATCH_API_TARGET / AUTHOR_API_TARGET as URLs or add equivalent
+  # App resources when deploying those services. Unconfigured services return
+  # an actionable error without preventing the other workspaces from running.
+  # Optional per-service *_API_BEARER_TOKEN settings override managed OAuth.

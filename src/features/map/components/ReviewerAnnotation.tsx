@@ -1,7 +1,8 @@
 import { cx } from "@/shared/lib/classNames"
-import { Panel } from "@/shared/components"
+import { Panel, HelpTooltip } from "@/shared/components"
 import type { DeviationRecord, ReviewDraft } from "../types"
 import { formatDate } from "../utils"
+import { mapHelp } from "../helpText"
 
 const options = [
   { label: "Supports pattern", tone: "bg-[#e3f5eb] text-[#14734a]" },
@@ -25,10 +26,15 @@ export function ReviewerAnnotation({
   return (
     <Panel
       title="Reviewer annotation"
+      tooltip={mapHelp.annotation}
       help="Saved against this record and analysis. This does not approve an assignment or change the QMS."
     >
       <div className="mb-3 lg:hidden">
         <button type="button" onClick={onReadSource} className="min-h-9 rounded-sm text-xs font-bold text-suite-blue underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-brand">Back to source ↑</button>
+      </div>
+      <div className="mb-2 flex items-center gap-1 text-xs font-bold">
+        <span>Reviewer assessment</span>
+        <HelpTooltip label="Reviewer assessment">{mapHelp.assessment}</HelpTooltip>
       </div>
       <fieldset disabled={saving}>
         <legend className="sr-only">Reviewer assessment</legend>

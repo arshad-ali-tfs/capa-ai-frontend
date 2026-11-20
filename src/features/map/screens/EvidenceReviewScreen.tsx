@@ -1,5 +1,5 @@
 import { useRef } from "react"
-import { Badge, DisclosurePanel, PageHeading, Panel } from "@/shared/components"
+import { Badge, DisclosurePanel, HelpTooltip, PageHeading, Panel } from "@/shared/components"
 import type {
   Cluster,
   DeviationRecord,
@@ -15,6 +15,7 @@ import { SourceReader } from "../components/SourceReader"
 import { FiveWhExtraction } from "../components/FiveWhExtraction"
 import { ReviewerAnnotation } from "../components/ReviewerAnnotation"
 import { useMapData } from "../MapDataProvider"
+import { mapHelp } from "../helpText"
 export function EvidenceReviewScreen({
   cluster,
   record,
@@ -85,6 +86,7 @@ export function EvidenceReviewScreen({
             <Badge tone="amber">{record.criticality}</Badge>
             <Badge>{record.status}</Badge>
             <span className="text-xs">Opened {formatDate(record.opened)}</span>
+            <HelpTooltip label="Source fields">{mapHelp.sourceFields}</HelpTooltip>
           </div>
         </section>
         {record.warnings.length > 0 && (
@@ -111,6 +113,7 @@ export function EvidenceReviewScreen({
                 cluster ? "Matching details" : "Assignment context"
               }
               help="Similarity signals support inspection; they do not prove correctness."
+              tooltip={mapHelp.matching}
             >
               <div className="flex flex-wrap gap-2">
                 <Badge tone="amber">INTERPRETATION · reviewer aid</Badge>
