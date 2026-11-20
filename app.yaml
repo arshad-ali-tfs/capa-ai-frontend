@@ -4,5 +4,4 @@ env:
     value: '0.0.0.0'
   - name: MAP_API_TARGET
     valueFrom: map-api-target
-  # Configure MAP_API_TARGET with the deployed MAP backend URL.
-  # Supply app-to-app authentication through server-side secret/environment configuration.
+  # The Databricks app resource supplies the backend app name. server.mjs resolves it to a URL.
