@@ -27,12 +27,14 @@ export function MatchScreen() {
   const [comparison,setComparison]=useState<string[]>([])
   const [focusPassage,setFocusPassage]=useState<SourcePassage|null>(null)
   const locationLoaded=useRef(false)
+  const initialParams=useRef(new URLSearchParams(window.location.search)).current
+  const userSearchStarted=useRef(false)
   const match = useMatchSearch()
   const overview = useMatchOverview(match.result)
   const facets = useMatchFilters(site, filters, match.indexInfo?.snapshotId, match.indexState !== "loading")
   const input: SearchInput = { query, site, topK, filters, mode, offset: 0 }
   const dirty = !!match.submitted && inputKey(input) !== inputKey(match.submitted)
-  const runSearch = () => { if (!dateError(filters)) {setSaved(null);setComparison([]);setFocusPassage(null);void match.search(input)} }
+  const runSearch = () => { if (!dateError(filters)) {userSearchStarted.current=true;setSaved(null);setComparison([]);setFocusPassage(null);void match.search(input)} }
   function setInput(value:SearchInput){setQuery(value.query);setSite(value.site);setTopK(value.topK);setFilters(value.filters);setMode(value.mode)}
   async function loadSaved(id:string){
     setCaseLoading(true);setCaseError("")
@@ -43,10 +45,14 @@ export function MatchScreen() {
   useEffect(()=>{
     if(match.indexState==="loading"||locationLoaded.current)return
     locationLoaded.current=true
-    const params=new URLSearchParams(window.location.search)
-    if(params.get("case"))void loadSaved(params.get("case")!)
-    else if(unavailableSearchLocation())setCaseError("This long search is no longer retained in this browser tab. Re-enter its criteria or open a saved investigation.")
-    else if(params.has("seed")||params.get("search")==="1")void match.search(initial)
+    // A submitted search updates the URL before the index may finish loading.
+    // Restore only the original location, and never supersede an interactive search.
+    const params=initialParams
+    if(!userSearchStarted.current && inputKey(input)===inputKey(initial)) {
+      if(params.get("case"))void loadSaved(params.get("case")!)
+      else if(unavailableSearchLocation())setCaseError("This long search is no longer retained in this browser tab. Re-enter its criteria or open a saved investigation.")
+      else if(params.has("seed")||params.get("search")==="1")void match.search(initial)
+    }
     void matchService.listCases().then(setCaseList).catch(()=>setCaseError("Saved investigations could not be listed. Current search remains available."))
   },[match.indexState])
   useEffect(()=>{

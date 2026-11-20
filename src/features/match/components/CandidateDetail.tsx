@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react"
+import { SelectedTabs } from "./SelectedTabs"
+import { WatchlistPanel } from "./WatchlistPanel"
+import { useEffect, useRef, useState } from "react"
 import { Badge, EmptyState } from "@/shared/components"
 import type { DetailState, MatchRow, RecordDetail, SourcePassage } from "../types"
 import { fieldLabel } from "../services/parse"
@@ -15,6 +17,12 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
   focusPassage?: SourcePassage | null
   onInclude?: (row:MatchRow)=>void
 }) {
+  const selectionKey=selected?`${selected.snapshotId}:${selected.site}:${selected.deviationId}`:""
+  const [tab,setTab]=useState<{key:string;value:"details"|"watchlist"}>({key:"",value:"details"})
+  const [openedWatch,setOpenedWatch]=useState("")
+  const activeTab=tab.key===selectionKey?tab.value:"details"
+  function changeTab(value:"details"|"watchlist") {setTab({key:selectionKey,value});if(value==="watchlist")setOpenedWatch(selectionKey)}
+  useEffect(()=>{if(detailState==="loading")setTab({key:selectionKey,value:"details"})},[detailState,selectionKey])
   const panel = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const highlight=useRef<HTMLElement>(null)
@@ -51,6 +59,10 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
               {selected.criticality && <Badge tone={criticalityTone(selected.criticality)}>{selected.criticality}</Badge>}
               {selected.status && <Badge tone={statusTone(selected.status)}>{selected.status}</Badge>}
             </div>
+          </div>
+          <SelectedTabs value={activeTab} onChange={changeTab}/>
+          <div id="match-details-panel" role="tabpanel" aria-labelledby="match-details-tab" hidden={activeTab!=="details"}>
+          <div className="pt-3">
             <p className="mt-3 text-[11px] font-bold text-suite-blue">{modeLabel[selected.matchKind]} · {selected.matchedField || "Indexed text"}</p>
             <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed [overflow-wrap:anywhere]"><HighlightedText text={selected.excerpt} spans={selected.spans} /></p>
             {selected.reasons.length > 0 && <ul aria-label="Why this record appears" className="mt-3 list-inside list-disc space-y-1 text-xs leading-5 text-suite-blue">{selected.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
@@ -104,6 +116,10 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
               <p className="mt-2 text-[11px] text-suite-muted">{recordDetail.coverage?.effectiveness??"CAPA completion and effectiveness are separate evidence states. A closed status alone does not establish effectiveness."}</p>
             </div>
           </>}
+          </div>
+          <div id="match-watchlist-panel" role="tabpanel" aria-labelledby="match-watchlist-tab" hidden={activeTab!=="watchlist"}>
+            {openedWatch===selectionKey&&<WatchlistPanel key={selectionKey} selected={selected}/>}
+          </div>
         </>}
       </div>
     </aside>
