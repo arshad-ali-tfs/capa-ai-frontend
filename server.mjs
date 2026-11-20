@@ -110,10 +110,13 @@ const server = http.createServer(async (request, response) => {
       target,
       { method: request.method, headers, timeout: 180000 },
       (result) => {
-        response.writeHead(result.statusCode || 502, {
+        const responseHeaders = {
           "Content-Type": result.headers["content-type"] || "application/json",
           "Cache-Control": "no-store",
-        })
+        }
+        if (result.headers["x-request-id"])
+          responseHeaders["X-Request-ID"] = result.headers["x-request-id"]
+        response.writeHead(result.statusCode || 502, responseHeaders)
         result.pipe(response)
       },
     )

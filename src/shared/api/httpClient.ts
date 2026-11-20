@@ -28,6 +28,13 @@ function messageFromPayload(payload: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value)
 }
 
+function diagnosticPath(path: string): string {
+  return path
+    .split("?", 1)[0]
+    .replace(/(\/api\/v1\/map\/runs\/)[a-f0-9]{32}/g, "$1:run_id")
+    .replace(/(\/records\/)[^/]+/g, "$1:record_id")
+}
+
 export async function requestJson<T>(
   path: string,
   init: RequestInit = {},
@@ -37,11 +44,28 @@ export async function requestJson<T>(
     headers.set("Content-Type", "application/json")
   }
 
-  const response = await fetch(buildApiUrl(path), { ...init, headers })
+  const method = (init.method || "GET").toUpperCase()
+  let response: Response
+  try {
+    response = await fetch(buildApiUrl(path), { ...init, headers })
+  } catch (error) {
+    console.error("[MAP API] Network request failed", {
+      method,
+      path: diagnosticPath(path),
+      error: error instanceof Error ? error.message : "Unknown network error",
+    })
+    throw error
+  }
   const text = await response.text()
   const payload = text ? parseJson(text) : null
 
   if (!response.ok) {
+    console.error("[MAP API] Request returned an error", {
+      method,
+      path: diagnosticPath(path),
+      status: response.status,
+      requestId: response.headers.get("x-request-id"),
+    })
     throw new Error(
       messageFromPayload(payload) ||
         text ||

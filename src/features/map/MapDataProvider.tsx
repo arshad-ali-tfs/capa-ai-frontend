@@ -43,6 +43,9 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     inFlight = useRef(false),
     mounted = useRef(false)
   const controller = useRef<AbortController>()
+  const lastLoggedHistoryCount = useRef<number | null>(null)
+  const lastLoggedDataset = useRef("")
+  const lastLoggedDatasetError = useRef("")
   const setEditing = useCallback((value: boolean) => {
     editingRef.current = value
     setEditingState(value)
@@ -58,10 +61,23 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     try {
       // History failures must not hide an otherwise usable completed analysis.
       void mapService.listRuns(abort.signal).then((value) => {
-        if (mounted.current && controller.current === abort) { setRuns(value); setRunsError("") }
-      }).catch(() => {
-        if (mounted.current && controller.current === abort && !abort.signal.aborted)
+        if (mounted.current && controller.current === abort) {
+          setRuns(value)
+          setRunsError("")
+          if (lastLoggedHistoryCount.current !== value.length) {
+            lastLoggedHistoryCount.current = value.length
+            console.info("[MAP] Completed-run history loaded", { completedRuns: value.length })
+            if (value.length === 0)
+              console.warn("[MAP] No completed analysis exists yet; start one with POST /api/v1/map/runs.")
+          }
+        }
+      }).catch((failure) => {
+        if (mounted.current && controller.current === abort && !abort.signal.aborted) {
           setRunsError("Previous runs could not be loaded. Refresh to retry.")
+          console.error("[MAP] Could not load run history", {
+            error: failure instanceof Error ? failure.message : "Unknown error",
+          })
+        }
       })
       const value = await mapService.loadDataset(abort.signal, run)
       if (
@@ -74,10 +90,30 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
         setSelectedRun(run)
         setError("")
         setLastChecked(new Date().toISOString())
+        const datasetKey = `${value.analysis.runId}:${value.analysis.recordCount}:${value.clusters.length}`
+        if (lastLoggedDataset.current !== datasetKey) {
+          lastLoggedDataset.current = datasetKey
+          console.info("[MAP] Dataset loaded", {
+            runId: value.analysis.runId,
+            records: value.analysis.recordCount,
+            clusters: value.clusters.length,
+            sourceAvailable: value.analysis.sourceAvailable,
+          })
+        }
+        lastLoggedDatasetError.current = ""
         if (navigate) navigateTo(`/map?${new URLSearchParams(run ? { run } : {}).toString()}`)
       }
     } catch (failure) {
-      if (mounted.current && controller.current === abort)
+      if (mounted.current && controller.current === abort) {
+        const message = failure instanceof Error ? failure.message : "Unknown error"
+        const errorKey = `${run ? "selected" : "latest"}:${message}`
+        if (lastLoggedDatasetError.current !== errorKey) {
+          lastLoggedDatasetError.current = errorKey
+          console.error("[MAP] Dataset load failed", {
+            selection: run ? "explicit run" : "latest completed run",
+            error: message,
+          })
+        }
         setError(
           failure instanceof DOMException && failure.name === "AbortError"
             ? "MAP took too long to respond. Please retry."
@@ -85,6 +121,7 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
               ? failure.message
               : "Unable to load MAP data.",
         )
+      }
     } finally {
       window.clearTimeout(timeout)
       if (controller.current === abort) {
