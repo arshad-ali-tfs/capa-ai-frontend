@@ -114,7 +114,7 @@ export function FilterPanel<K extends string>({
         </div>
       )}
       {advancedFields.length > 0 && (
-        <details className="group mt-2 border-t border-suite-line-soft pt-2">
+        <details open={advancedFields.some(field=>filters[field.key]!=="All") || undefined} className="group mt-2 border-t border-suite-line-soft pt-2">
           <summary className="cursor-pointer list-none rounded-md px-2 py-1.5 text-xs font-bold text-suite-slate outline-none hover:bg-suite-hover focus-visible:ring-2 focus-visible:ring-brand">
             <span className="group-open:hidden">
               More filters ({advancedFields.length})
