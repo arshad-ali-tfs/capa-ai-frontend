@@ -1,3 +1,4 @@
+import type { AnswerMetadata } from "./summaryEvidence"
 export type SearchState = "idle" | "loading" | "success" | "empty" | "error"
 export type DetailState = "idle" | "loading" | "success" | "error"
 export type IndexState = "loading" | "success" | "error"
@@ -90,7 +91,7 @@ export interface SearchResult {
   summaryId?: string | null
 }
 
-export interface EvidenceOverview {
+export interface EvidenceOverview extends AnswerMetadata {
   searchId: string
   snapshotId: string
   lines: { text: string; references: string[] }[]

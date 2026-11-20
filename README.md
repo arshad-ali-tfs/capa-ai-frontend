@@ -288,3 +288,19 @@ Missing clients or products are shown as unavailable, never inferred from text.
 Stages disclose recorded versus grouped process-step/department coverage. These
 rankings need the matching MAP `/runs/{run_id}/insights` endpoint; failures have an
 independent retry and do not hide the existing analysis KPIs.
+
+
+### MATCH direct answers and historical watchlist (21 November 2026)
+
+Question searches produce a source-verified answer first, with a question-specific
+evidence gap when the returned excerpts do not support an answer. Keyword searches
+retain the overview format. Supporting original quotes are available in the summary.
+
+Selected deviations have Details / Watchlist tabs below severity/status badges.
+Watchlist loads only when opened and is independent of the AI summary. It counts
+distinct other same-site MATCH-eligible indexed deviations across all retained dates,
+not only the returned search candidates. Current search filters do not narrow it.
+Equipment/location mentions and title/description event indicators are separate;
+these are historical review signals, not proof of recurrence, causation or CAPA
+effectiveness. Dates, yearly counts, recent counts and exact supporting excerpts are
+provided. Other records can be inspected without replacing the search results.
