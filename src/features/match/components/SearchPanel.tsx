@@ -1,4 +1,4 @@
-import { useId, type KeyboardEvent } from "react"
+import { useId, useState, type KeyboardEvent } from "react"
 import { HelpTooltip, Panel } from "@/shared/components"
 import type { FilterOptions, MatchFilters, SearchMode } from "../types"
 import { capaLabels, dateError, filterChips, validQuery } from "../searchModel"
@@ -16,6 +16,7 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
   semanticState?: "warming" | "ready" | "unavailable"
 }) {
   const id = useId()
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const error = dateError(filters)
   const canSearch = validQuery(query) && !loading && !error
   const update = <K extends keyof MatchFilters>(key: K, value: MatchFilters[K]) => onFiltersChange({ ...filters, [key]: value })
@@ -28,11 +29,32 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && canSearch) { event.preventDefault(); onSearch() }
   }
-  return <Panel title="Find historical deviations" help="Choose your scope, then browse the records or search for a specific issue.">
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-suite-info-wash px-3 py-2 text-xs text-suite-blue" aria-label="Filter scope">
+  return <Panel title="Find relevant history" help="Describe what happened, paste an equipment ID, or ask a question about historical deviations.">
+    <label htmlFor={`${id}-query`} className="mb-2 block text-sm font-bold">Search history</label>
+    <textarea id={`${id}-query`} value={query} onChange={event => onQueryChange(event.target.value)} onKeyDown={onKeyDown} rows={3} maxLength={30000} aria-describedby={`${id}-help`} placeholder="e.g. HPLC system suitability failures in Toronto in 2025, or equipment MFG859…" className="min-h-28 w-full min-w-0 resize-y rounded-xl border border-suite-line-strong bg-white px-4 py-3 text-base leading-relaxed outline-none placeholder:text-suite-muted/70 focus:border-brand focus:ring-2 focus:ring-brand/15" />
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <button type="button" onClick={onSearch} disabled={!canSearch} className="map-primary min-h-11 min-w-36">{loading ? "Searching…" : "Search"}</button>
+      {loading && <button type="button" onClick={onCancel} className="map-secondary min-h-11">Cancel search</button>}
+      <button type="button" aria-label="Filters" aria-expanded={filtersOpen} aria-controls={`${id}-filters`} onClick={()=>setFiltersOpen(value=>!value)} className="map-secondary flex min-h-11 items-center gap-2">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
+        Filters{(chips.length > 0 || site) && <span className="rounded-full bg-suite-info-wash px-2 py-0.5 text-xs text-suite-blue">{chips.length + (site ? 1 : 0)}</span>}<span aria-hidden="true">{filtersOpen ? "⌃" : "⌄"}</span>
+      </button>
+      <span className="text-xs text-suite-muted sm:ml-auto">{mode === "auto" ? "Smart search" : mode === "semantic" ? "Meaning search" : mode === "exact" ? "Exact phrase" : "All keywords"} · Ctrl+Enter</span>
+    </div>
+    <p id={`${id}-help`} className="mt-3 text-xs leading-5 text-suite-muted">Search naturally, use an exact identifier, or leave empty to browse. <HelpTooltip label="Smart search behaviour">Smart search clarifies pharmaceutical wording and searches your original query too. Explicit equipment/document identifiers are preserved as hard requirements. Year, site and criticality requested in a sentence may be interpreted as filters; applied criteria are shown with the results. Selected filters take precedence. Use the search mode inside Filters for all-keyword, exact phrase or broader Meaning searches. Numeric-only Smart input means a deviation ID.</HelpTooltip></p>
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-suite-muted"><span>Try:</span>{["HPLC system suitability failures", "wrong material added", '"line clearance"'].map(example => <button key={example} type="button" onClick={() => onQueryChange(example)} className="min-h-8 rounded-full border border-suite-line px-3 font-bold text-suite-blue hover:bg-suite-hover">{example}</button>)}</div>
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-suite-info-wash px-3 py-2 text-xs text-suite-blue" aria-label="Filter scope">
       <span aria-live="polite">{error ? "Check the opened date range" : optionsLoading ? "Updating filter counts…" : optionsError ? "Filter counts unavailable" : options ? <><strong className="tabular-nums">{options.eligibleCount.toLocaleString()}</strong> {options.eligibleCount === 1 ? "deviation" : "deviations"} within filters <span className="text-suite-muted">of {options.scopeCount.toLocaleString()} in site scope</span></> : "Choose filters below"}</span>
       <span className="flex items-center gap-1">Historical closed deviations<HelpTooltip label="MATCH search coverage">Searches the deviations retained in this index and allowed site scope. The index contains historical Closed - Done records; it does not represent every record in the source system. Year and date filters use the source opened date.</HelpTooltip></span>
     </div>
+    {(chips.length > 0 || site) && <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Active filters">
+      {site && <button type="button" aria-label={`Remove Site: ${site}`} onClick={() => onSiteChange("")} className="min-h-8 max-w-full rounded-full bg-suite-info-wash px-3 py-1 text-xs text-suite-blue [overflow-wrap:anywhere]">Site: {site} ×</button>}
+      {chips.map(chip => <button key={`${chip.key}:${chip.value}`} type="button" aria-label={`Remove ${chip.label}`} onClick={() => remove(chip.key, chip.value)} className="min-h-8 max-w-full rounded-full bg-suite-info-wash px-3 py-1 text-xs text-suite-blue [overflow-wrap:anywhere]">{chip.label} ×</button>)}
+      <button type="button" onClick={() => { onFiltersChange({ years: [], criticalities: [], dr_types: [], departments: [], date_from: null, date_to: null, capa: "any" }); onSiteChange("") }} className="min-h-8 px-2 text-xs font-bold text-suite-blue">Clear filters</button>
+    </div>}
+    {optionsError && <p className="mt-3 text-xs text-suite-muted">{optionsError} <button type="button" onClick={onRetryOptions} className="min-h-8 font-bold text-suite-blue underline">Retry filter counts</button></p>}
+    {error && <p className="mt-3 text-xs font-bold text-brand" role="alert">{error}</p>}
+    <div id={`${id}-filters`} hidden={!filtersOpen} className="mt-4 border-t border-suite-line-soft pt-4">
     <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div className="min-w-0"><div className="mb-1 flex items-center gap-1 text-xs font-bold text-suite-slate"><label htmlFor={`${id}-site`}>Site</label><HelpTooltip label="Site filter">Choose one indexed site or all sites allowed by the service. Every filter and search respects this scope.</HelpTooltip></div>
         <select id={`${id}-site`} aria-label="Search scope" value={site} onChange={event => onSiteChange(event.target.value)} className="min-h-11 w-full min-w-0 rounded-lg border border-suite-line-field bg-white px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand">
@@ -53,26 +75,13 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
         <p className="self-end text-[11px] leading-5 text-suite-muted sm:col-span-2">Date boundaries are inclusive. Records without a usable opened date are excluded when a year or date filter is active.{options?.missingDates ? ` ${options.missingDates} records in this view have no usable opened date.` : ""}</p>
       </div>
     </details>
-    {(chips.length > 0 || site) && <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Active filters">
-      {site && <button type="button" aria-label={`Remove Site: ${site}`} onClick={() => onSiteChange("")} className="min-h-8 max-w-full rounded-full bg-suite-info-wash px-3 py-1 text-xs text-suite-blue [overflow-wrap:anywhere]">Site: {site} ×</button>}
-      {chips.map(chip => <button key={`${chip.key}:${chip.value}`} type="button" aria-label={`Remove ${chip.label}`} onClick={() => remove(chip.key, chip.value)} className="min-h-8 max-w-full rounded-full bg-suite-info-wash px-3 py-1 text-xs text-suite-blue [overflow-wrap:anywhere]">{chip.label} ×</button>)}
-      <button type="button" onClick={() => { onFiltersChange({ years: [], criticalities: [], dr_types: [], departments: [], date_from: null, date_to: null, capa: "any" }); onSiteChange("") }} className="min-h-8 px-2 text-xs font-bold text-suite-blue">Clear filters</button>
-    </div>}
-    {optionsError && <p className="mt-3 text-xs text-suite-muted">{optionsError} <button type="button" onClick={onRetryOptions} className="min-h-8 font-bold text-suite-blue underline">Retry filter counts</button></p>}
-    {error && <p className="mt-3 text-xs font-bold text-brand" role="alert">{error}</p>}
-    <div className="mt-5 border-t border-suite-line-soft pt-4">
-      {semanticState === "warming" && <p className="mb-3 rounded-lg bg-suite-info-wash p-2.5 text-xs leading-5 text-suite-blue">Meaning search is warming up. You can browse or use IDs and keywords while it prepares.</p>}
-      {semanticState === "unavailable" && <p className="mb-3 rounded-lg bg-warn-wash p-2.5 text-xs leading-5 text-warn-ink">The meaning-search model could not be prepared. Browsing, exact IDs and keyword searches remain available.</p>}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><label htmlFor={`${id}-query`} className="text-sm font-bold">Search history</label><span className="text-[11px] text-suite-muted">Optional · leave empty to browse your filtered records</span></div>
-      <textarea id={`${id}-query`} value={query} onChange={event => onQueryChange(event.target.value)} onKeyDown={onKeyDown} rows={3} maxLength={30000} aria-describedby={`${id}-help`} placeholder="Equipment ID, deviation ID, keywords or describe the issue…" className="min-h-24 w-full min-w-0 resize-y rounded-lg border border-suite-line-field bg-white px-3 py-3 text-[15px] leading-relaxed outline-none placeholder:text-suite-muted/70 focus:border-brand focus:ring-1 focus:ring-brand" />
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="flex min-w-0 flex-col gap-1 text-xs font-bold sm:max-w-xs sm:flex-1">Search mode<select aria-label="Search mode" value={mode} onChange={event => onModeChange(event.target.value as SearchMode)} className="min-h-11 w-full rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"><option value="auto">Smart · detect the search intent</option><option value="keyword">Keywords · all words required</option><option value="exact">Exact phrase</option><option value="semantic">Meaning · related descriptions</option></select></label>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1 text-xs font-bold">Search mode<select aria-label="Search mode" value={mode} onChange={event => onModeChange(event.target.value as SearchMode)} className="min-h-11 w-full rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"><option value="auto">Smart · understand the issue</option><option value="keyword">Keywords · all words required</option><option value="exact">Exact phrase</option><option value="semantic">Meaning · related descriptions</option></select></label>
         <label className="flex flex-col gap-1 text-xs font-bold">Maximum results<select aria-label="Maximum results" value={topK} onChange={event => onTopKChange(Number(event.target.value))} className="min-h-11 rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand">{[10,25,50].map(count => <option key={count} value={count}>{count}</option>)}</select></label>
-        <button type="button" onClick={onSearch} disabled={!canSearch} className="map-primary min-h-11 sm:ml-auto sm:min-w-44">{loading ? "Searching…" : query.trim() ? "Search" : "Browse records"}</button>
-        {loading && <button type="button" onClick={onCancel} className="map-secondary min-h-11">Cancel search</button>}
       </div>
-      <p id={`${id}-help`} className="mt-3 text-xs leading-5 text-suite-muted">Search directly with an ID or short keyword such as HPLC. Literal searches also inspect investigation text where available. Put a phrase in quotation marks for a literal match, or describe an issue to find related wording. <span className="whitespace-nowrap">Ctrl+Enter to apply.</span> <HelpTooltip label="Smart search behaviour">In Smart mode, numeric-only input and PR-prefixed IDs look up exact deviation IDs. Short identifier-led queries require the detected identifiers, preserving digits and leading zeros while allowing separators such as EQ-104 and EQ104. Use Keywords to find a numeric equipment or batch reference in narrative text. Full descriptions use meaning and keywords; choose Meaning to compare broader wording without identifier constraints. All modes respect the active filters.</HelpTooltip></p>
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-suite-muted"><span>Try:</span>{["HPLC", "OOS", '\"line clearance\"'].map(example => <button key={example} type="button" onClick={() => onQueryChange(example)} className="min-h-8 rounded-full border border-suite-line px-3 font-bold text-suite-blue hover:bg-suite-hover">{example}</button>)}<span className="ml-auto">{query.length.toLocaleString()} / 30,000 characters</span></div>
+      <p className="mt-3 text-[11px] leading-5 text-suite-muted">Literal searches include investigation text where available. Filters apply together; multiple values within a field mean any selected value.</p>
     </div>
+    {semanticState === "warming" && <p className="mt-3 text-xs leading-5 text-suite-muted">Meaning search is warming up. You can browse or use exact IDs and Keywords mode while it prepares.</p>}
+    {semanticState === "unavailable" && <p className="mt-3 text-xs leading-5 text-suite-muted">Meaning search is unavailable. Browsing, exact IDs and Keywords mode remain available.</p>}
   </Panel>
 }

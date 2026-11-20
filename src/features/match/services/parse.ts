@@ -1,4 +1,4 @@
-import type { CapaRow, FilterOptions, IndexInfo, MatchFilters, MatchKind, MatchRow, RecordDetail, SearchResult } from "../types"
+import type { CapaRow, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchKind, MatchRow, RecordDetail, SearchResult } from "../types"
 
 const UNEXPECTED = "MATCH returned an unexpected response."
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -48,6 +48,7 @@ function parseRow(value: unknown, snapshotId: string): MatchRow {
     }
   }
   const reasons = value.match_reasons === undefined ? [] : stringList(value.match_reasons)
+  if (value.candidate_relationship !== undefined && !["direct", "related"].includes(value.candidate_relationship as string)) throw new Error(UNEXPECTED)
   return {
     deviationId: requiredText(value.pr_id),
     site: requiredText(value.site),
@@ -55,13 +56,14 @@ function parseRow(value: unknown, snapshotId: string): MatchRow {
     status: text(value.status),
     criticality: text(value.criticality),
     scoreLabel: relevance !== undefined ? "Relevance score" : kind === "semantic" ? "Semantic score" : "Hybrid score",
-    score: score === null ? "" : (typeof relevance === "number" ? relevance : score as number).toFixed(3),
+    score: score === null || value.rank_fusion === true ? "" : (typeof relevance === "number" ? relevance : score as number).toFixed(3),
     excerpt,
     matchedField: fieldLabel(text(value.matched_field)),
     snapshotId,
     recordName: text(value.record_name), drType: text(value.dr_type), department: text(value.responsible_department),
     capaCount: value.related_capa_count === undefined ? 0 : count(value.related_capa_count),
     matchKind: kind, reasons, spans,
+    ...(value.candidate_relationship ? {relationship:value.candidate_relationship as "direct" | "related"} : {}),
   }
 }
 
@@ -90,12 +92,45 @@ export function parseSearchResponse(value: unknown): SearchResult {
     hasMore: value.has_more === undefined ? false : mockFlag(value.has_more),
     rankingHelp: value.ranking_explanation === undefined ? null : requiredText(value.ranking_explanation),
   }
-  if ((!result.query) !== (result.searchMode === "browse") || result.limit < 1 || result.limit > 50 ||
+  if (value.interpretation !== undefined) {
+    const plan = value.interpretation
+    if (plan !== null && (!isRecord(plan) || !["llm", "local"].includes(plan.origin as string))) throw new Error(UNEXPECTED)
+    if (plan !== null && typeof plan.query !== "string") throw new Error(UNEXPECTED)
+    result.interpretation = plan === null ? null : { query: plan.query as string, origin: plan.origin as "llm" | "local" }
+  }
+  if (value.submitted_criteria !== undefined) {
+    const submitted = value.submitted_criteria
+    if (!isRecord(submitted) || typeof submitted.query !== "string" || typeof submitted.all_sites !== "boolean" ||
+      submitted.all_sites === (submitted.site !== null) || submitted.assist !== true) throw new Error(UNEXPECTED)
+    result.submittedCriteria = { query: submitted.query, site: submitted.all_sites ? "" : requiredText(submitted.site),
+      topK: count(submitted.top_k), mode: parseMode(submitted.mode), offset: count(submitted.offset), filters: parseFilters(submitted.filters) }
+  }
+  if (value.summary_id !== undefined) {
+    if (value.summary_id !== null && (typeof value.summary_id !== "string" || !/^[a-f0-9]{32}$/.test(value.summary_id))) throw new Error(UNEXPECTED)
+    result.summaryId = value.summary_id as string | null
+  }
+  const interpretedBrowse = !!result.submittedCriteria && result.interpretation?.query === "" && result.searchMode === "browse"
+  if (!interpretedBrowse && (!result.query) !== (result.searchMode === "browse") || result.limit < 1 || result.limit > 50 ||
     result.eligibleCount !== null && result.scopeCount !== null && result.eligibleCount > result.scopeCount ||
     result.totalMatches !== null && (rows.length > result.totalMatches || result.eligibleCount !== null && result.totalMatches > result.eligibleCount) ||
     result.hasMore && (result.totalMatches === null || result.offset + rows.length >= result.totalMatches) ||
     value.search_mode !== undefined && rows.some(row => row.matchKind !== result.searchMode)) throw new Error(UNEXPECTED)
   return result
+}
+
+export function parseEvidenceOverview(value: unknown, expected: SearchResult): EvidenceOverview {
+  if (!isRecord(value) || value.search_id !== expected.summaryId || value.source_snapshot_id !== expected.rows[0]?.snapshotId ||
+    !Array.isArray(value.lines) || value.lines.length < 3 || value.lines.length > 4) throw new Error("The evidence overview belongs to another search or could not be verified.")
+  const reviewedIds = stringList(value.reviewed_ids)
+  if (!reviewedIds.length || reviewedIds.length > 6 || new Set(reviewedIds).size !== reviewedIds.length ||
+    reviewedIds.some(id => !expected.rows.some(row => row.deviationId === id)) || count(value.returned_count) !== expected.rows.length) throw new Error(UNEXPECTED)
+  const lines = value.lines.map(line => {
+    if (!isRecord(line)) throw new Error(UNEXPECTED)
+    const content = requiredText(line.text), references = stringList(line.references)
+    if (content.length > 500 || !references.length || references.some(id => !reviewedIds.includes(id))) throw new Error(UNEXPECTED)
+    return { text: content, references: [...new Set(references)] }
+  })
+  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length}
 }
 
 const kinds: MatchKind[] = ["browse", "record_id", "identifier", "keyword", "exact", "hybrid", "semantic"]

@@ -48,6 +48,7 @@ export interface MatchRow {
   matchKind: MatchKind
   reasons: string[]
   spans: { start: number; end: number }[]
+  relationship?: "direct" | "related"
 }
 
 export interface CapaRow {
@@ -84,6 +85,17 @@ export interface SearchResult {
   limit: number
   hasMore: boolean
   rankingHelp: string | null
+  interpretation?: { query: string; origin: "llm" | "local" } | null
+  submittedCriteria?: SearchInput
+  summaryId?: string | null
+}
+
+export interface EvidenceOverview {
+  searchId: string
+  snapshotId: string
+  lines: { text: string; references: string[] }[]
+  reviewedIds: string[]
+  returnedCount: number
 }
 
 export interface IndexInfo {

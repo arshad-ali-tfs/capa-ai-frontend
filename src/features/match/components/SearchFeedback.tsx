@@ -1,5 +1,6 @@
 import { EmptyState } from "@/shared/components"
 import type { SearchResult, SearchState } from "../types"
+import { filterChips } from "../searchModel"
 
 export function SearchFeedback({
   state,
@@ -54,6 +55,7 @@ export function SearchFeedback({
           : "No historical deviations matched this search. Adjust the keywords or filters, or try Meaning mode for related wording."} />
         {result && <p className="mt-3 text-xs leading-5 text-suite-muted">{result.scope}{result.eligibleCount !== null ? ` · ${result.eligibleCount.toLocaleString()} deviations within submitted filters` : ""}. Search covers retained index fields. A missing result does not establish that no related event exists in the QMS.</p>}
         {!!result?.requiredIdentifiers.length && <p className="mt-2 text-xs font-bold text-suite-blue">Required identifiers: {result.requiredIdentifiers.join(", ")}</p>}
+        {result?.filters && <div className="mt-2 flex flex-wrap gap-2">{filterChips(result.filters).map(chip=><span key={`${chip.key}:${chip.value}`} className="rounded-full bg-suite-info-wash px-2 py-1 text-[11px] text-suite-blue">{chip.label}</span>)}</div>}
       </section>
     )
   }

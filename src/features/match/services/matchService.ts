@@ -1,7 +1,7 @@
 import { matchApi } from "@/shared/api/clients"
-import type { FilterOptions, IndexInfo, MatchFilters, MatchRow, RecordDetail, SearchInput, SearchResult } from "../types"
-import { parseFilterOptions, parseIndexInfo, parseRecordDetail, parseSearchResponse } from "./parse"
-import { canonicalFilters, filterKey, hasFilters } from "../searchModel"
+import type { EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchRow, RecordDetail, SearchInput, SearchResult } from "../types"
+import { parseEvidenceOverview, parseFilterOptions, parseIndexInfo, parseRecordDetail, parseSearchResponse } from "./parse"
+import { canonicalFilters, filterKey, hasFilters, inputKey } from "../searchModel"
 
 const BASE = "/api/v1/match"
 export const matchService = {
@@ -11,13 +11,25 @@ export const matchService = {
       method: "POST",
       body: JSON.stringify({ query, ...(site ? { site } : { all_sites: true }), top_k: topK,
         ...(hasFilters(input.filters) ? { filters: canonicalFilters(input.filters) } : {}),
-        mode, ...(offset ? { offset } : {}) }),
+        mode, assist: true, ...(offset ? { offset } : {}) }),
       signal,
     }))
-    if (result.query !== query || result.scope !== (site || "All allowed sites") || result.rows.length > topK || result.offset !== offset ||
-      result.requestedMode !== mode || (result.filters ? filterKey(result.filters) !== filterKey(input.filters) : hasFilters(input.filters)))
+    const submitted = result.submittedCriteria
+    const effective = result.filters
+    const changedSelectedFilters = effective && Object.entries(canonicalFilters(input.filters)).some(([key, value]) => {
+      const selected = Array.isArray(value) ? value.length > 0 : value !== null && value !== "any"
+      return selected && JSON.stringify(value) !== JSON.stringify(canonicalFilters(effective)[key as keyof MatchFilters])
+    })
+    const wrongCriteria = submitted ? inputKey(submitted) !== inputKey(input) || submitted.offset !== offset :
+      result.scope !== (site || "All allowed sites") || (result.filters ? filterKey(result.filters) !== filterKey(input.filters) : hasFilters(input.filters))
+    if (result.query !== query || wrongCriteria || changedSelectedFilters || site && result.scope !== site || result.rows.length > topK || result.offset !== offset || result.requestedMode !== mode)
       throw new Error("MATCH returned results for a different query or scope. Please retry.")
     return result
+  },
+  async getOverview(result: SearchResult, signal?: AbortSignal): Promise<EvidenceOverview> {
+    return parseEvidenceOverview(await matchApi.requestJson<unknown>(`${BASE}/overview`, {
+      method: "POST", body: JSON.stringify({ search_id: result.summaryId }), signal,
+    }), result)
   },
   async getFilterOptions(site: string, filters: MatchFilters, signal?: AbortSignal): Promise<FilterOptions> {
     const value = parseFilterOptions(await matchApi.requestJson<unknown>(`${BASE}/facets`, {

@@ -20,12 +20,12 @@ test.beforeEach(async({page})=>{await mocks(page)})
 
 test("filters alone browse historical records with explicit population counts and no similarity score",async({page})=>{
   const calls:any[]=[]; await mocks(page,calls)
-  await page.goto("/match")
+  await openMatch(page)
   await expect(page.getByLabel("Filter scope")).toContainText("3 deviations within filters")
   await choose(page,"Opened years",["2026"])
   await choose(page,"Criticality",["Major"])
   await expect(page.getByLabel("Filter scope")).toContainText("1 deviation within filters")
-  await page.getByRole("button",{name:"Browse records",exact:true}).click()
+  await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect(results(page)).toContainText("Showing 1–1 of 1 deviation")
   await expect(results(page)).toContainText("DEV-260184")
   await expect(results(page).getByText("Hybrid score",{exact:true})).toHaveCount(0)
@@ -35,7 +35,7 @@ test("filters alone browse historical records with explicit population counts an
 })
 
 test("identifier search highlights literal evidence and explains why each candidate appears",async({page})=>{
-  await page.goto("/match")
+  await openMatch(page)
   await box(page).fill("EQ-104")
   await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect(results(page)).toContainText("Showing 1–2 of 2 deviations")
@@ -48,7 +48,7 @@ test("identifier search highlights literal evidence and explains why each candid
 })
 
 test("short record IDs and unknown equipment IDs do not trigger an unrelated fallback",async({page})=>{
-  await page.goto("/match")
+  await openMatch(page)
   await box(page).fill("DEV-260184")
   await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect(results(page)).toContainText("Exact deviation ID")
@@ -60,12 +60,12 @@ test("short record IDs and unknown equipment IDs do not trigger an unrelated fal
 })
 
 test("year and criticality multi-selects, active chips and clear filters remain coherent",async({page})=>{
-  await page.goto("/match")
+  await openMatch(page)
   await expect(page.getByLabel("Filter scope")).toContainText("3 deviations")
   await choose(page,"Opened years",["2025","2026"])
   await choose(page,"Criticality",["Major","Critical"])
   await expect(page.getByRole("button",{name:"Remove Criticality: Critical",exact:true})).toBeVisible()
-  await page.getByRole("button",{name:"Browse records",exact:true}).click()
+  await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect(results(page)).toContainText("Showing 1–2 of 2 deviations")
   await page.getByRole("button",{name:"Remove Criticality: Critical",exact:true}).click()
   await expect(page.getByRole("status")).toContainText("still reflect the submitted criteria")
@@ -76,22 +76,22 @@ test("year and criticality multi-selects, active chips and clear filters remain 
 
 test("date boundaries are validated and CAPA filters are sent as explicit criteria",async({page})=>{
   const calls:any[]=[]; await mocks(page,calls)
-  await page.goto("/match")
+  await openMatch(page)
   await page.getByText("More filters · department, dates and CAPA",{exact:true}).click()
   await page.getByLabel("Opened from",{exact:true}).fill("2026-09-01")
   await page.getByLabel("Opened to",{exact:true}).fill("2025-01-01")
   await expect(page.getByRole("alert")).toContainText("on or before")
-  await expect(page.getByRole("button",{name:"Browse records",exact:true})).toBeDisabled()
+  await expect(page.getByRole("button",{name:"Search",exact:true})).toBeDisabled()
   await page.getByLabel("Opened to",{exact:true}).fill("2026-12-31")
   await page.getByLabel("CAPA links",{exact:true}).selectOption("completed")
-  await page.getByRole("button",{name:"Browse records",exact:true}).click()
+  await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect(results(page)).toContainText("DEV-260184")
   expect(calls[0].filters.capa).toBe("completed")
   expect(calls[0].filters.date_from).toBe("2026-09-01")
 })
 
 test("Meaning mode uses its own score label and keeps submitted filters visible",async({page})=>{
-  await page.goto("/match")
+  await openMatch(page)
   await box(page).fill("unexpected instrument drift during verification")
   await page.getByLabel("Search mode",{exact:true}).selectOption("semantic")
   await page.getByRole("button",{name:"Search",exact:true}).click()
@@ -104,7 +104,7 @@ test("Meaning mode uses its own score label and keeps submitted filters visible"
 
 test("source version mismatches in facets never populate filter choices",async({page})=>{
   await page.route("**/api/v1/match/facets",r=>r.fulfill({json:{...filterResponse(),source_snapshot_id:"b".repeat(64)}}))
-  await page.goto("/match")
+  await openMatch(page)
   await expect(page.getByText(/source index changed/)).toBeVisible()
   await page.getByRole("button",{name:"Opened years filters",exact:true}).click()
   await expect(page.getByRole("checkbox")).toHaveCount(0)
@@ -112,7 +112,7 @@ test("source version mismatches in facets never populate filter choices",async({
 
 test("filter popovers support keyboard dismissal and 320px layouts retain all controls",async({page})=>{
   await page.setViewportSize({width:320,height:844})
-  await page.goto("/match")
+  await openMatch(page)
   await expect(page.getByLabel("Filter scope")).toContainText("3 deviations")
   const year=page.getByRole("button",{name:"Opened years filters",exact:true})
   await year.click()
@@ -138,8 +138,8 @@ test("browse pages use the submitted criteria and pause pagination when the form
     const rows=Array.from({length:25},(_,i)=>({...explorerRows[0],pr_id:`PAGE-${String(i+1).padStart(3,"0")}`,match_kind:"browse",match_score:null,matched_spans:[],match_reasons:["Matches the applied filters"]})).slice(offset,offset+limit)
     return r.fulfill({json:{query:"",site:"All sites",all_sites:true,source_snapshot_id:snapshotId,mock_embeddings:false,requested_mode:"auto",search_mode:"browse",filters:emptyFilters(),scope_record_count:25,eligible_record_count:25,required_identifiers:[],offset,limit,has_more:offset+rows.length<25,total_matches:25,result_count:rows.length,results:rows}})
   })
-  await page.goto("/match")
-  await page.getByRole("button",{name:"Browse records",exact:true}).click()
+  await openMatch(page)
+  await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect(results(page)).toContainText("Showing 1–10 of 25 deviations")
   await page.getByRole("button",{name:"Next page",exact:true}).click()
   await expect(results(page)).toContainText("Showing 11–20 of 25 deviations")
@@ -158,7 +158,7 @@ test("a cancelled search cannot replace the page with a late result",async({page
     await new Promise<void>(resolve=>{release=resolve})
     await route.fulfill({json:explorerResponse(body)}).catch(()=>{})
   })
-  await page.goto("/match")
+  await openMatch(page)
   await box(page).fill("HPLC")
   await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect.poll(()=>!!release).toBe(true)
@@ -170,7 +170,7 @@ test("a cancelled search cannot replace the page with a late result",async({page
 
 test("local model preparation is visible while literal searches remain usable",async({page})=>{
   await page.route("**/api/v1/match/index",route=>route.fulfill({json:{...index,semantic_state:"warming"}}))
-  await page.goto("/match")
+  await openMatch(page)
   await expect(page.getByText(/Meaning search is warming up/)).toBeVisible()
   await box(page).fill("HPLC")
   await page.getByRole("button",{name:"Search",exact:true}).click()
@@ -183,7 +183,7 @@ test("investigation-only identifier evidence is visible with its source field",a
     return route.fulfill({json:{...response,results:response.results.map(row=>({...row,matched_field:"INVESTIGATION"}))}})
   })
   await page.route("**/api/v1/match/matched-records/*?*",route=>route.fulfill({json:{...details[0],literal_field_texts:{INVESTIGATION:"FICTIONAL equipment EQ-104; pressure >10 psi."}}}))
-  await page.goto("/match")
+  await openMatch(page)
   await box(page).fill("EQ-104")
   await page.getByRole("button",{name:"Search",exact:true}).click()
   await expect(results(page)).toContainText("Matched field: Investigation")
@@ -192,3 +192,8 @@ test("investigation-only identifier evidence is visible with its source field",a
   await expect(narrative).toContainText("FICTIONAL equipment EQ-104; pressure >10 psi.")
   await expect(narrative.getByText("Literal search",{exact:true})).toBeVisible()
 })
+
+async function openMatch(page: Page) {
+  await page.goto("/match")
+  await page.getByRole("button", {name:"Filters", exact:true}).click()
+}

@@ -81,7 +81,7 @@ export function ResultsList({
                       <span className="text-sm font-bold text-brand">
                         {row.deviationId}
                       </span>
-                      <span className="rounded bg-suite-info-wash px-1.5 py-0.5 text-[10px] font-bold text-suite-blue">{modeLabel[row.matchKind]}</span>
+                      <span className="rounded bg-suite-info-wash px-1.5 py-0.5 text-[10px] font-bold text-suite-blue">{row.relationship ? row.relationship === "direct" ? "AI review · direct match" : "AI review · related case" : modeLabel[row.matchKind]}</span>
                       {row.criticality && (
                         <Badge tone={criticalityTone(row.criticality)}>
                           {row.criticality}

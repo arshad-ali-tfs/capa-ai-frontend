@@ -33,17 +33,17 @@ test("opens from navigation and reports actual index coverage", async ({ page })
   await expect(page).toHaveURL(/\/match$/)
   await expect(page.getByText("3 searchable deviations · 2 allowed sites")).toBeVisible()
   await expect(page.getByText("Search for precedent or browse filtered history")).toBeVisible()
-  await expect(page.getByRole("button", { name: "Browse records", exact: true })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Search", exact: true })).toBeEnabled()
   await expect(page.getByRole("navigation", { name: "CAPA.AI modules" }).getByRole("link")).toHaveText(["Home", "MAP", "MATCH"])
 })
 
 test("searches within an explicit scope and opens the selected record with CAPA links", async ({ page }) => {
   const calls: unknown[] = []
   await mockMatch(page, calls)
-  await page.goto("/match")
+  await openMatch(page)
   await search(page, "  settle plate alert  ")
   await expect(page.getByText("2 matches returned")).toBeVisible()
-  expect(calls).toEqual([{ query: "settle plate alert", all_sites: true, top_k: 10, mode: "auto" }])
+  expect(calls).toEqual([{ query: "settle plate alert", all_sites: true, top_k: 10, mode: "auto", assist: true }])
   const candidates = resultList(page).locator('button[aria-pressed="false"]')
   await expect(candidates).toHaveCount(2)
   await expect(candidates.first()).toContainText("18 Sep 2026")
@@ -58,18 +58,18 @@ test("searches within an explicit scope and opens the selected record with CAPA 
 test("single-site search retains exact site and requested result limit", async ({ page }) => {
   const calls: unknown[] = []
   await mockMatch(page, calls)
-  await page.goto("/match")
+  await openMatch(page)
   await page.getByRole("combobox", { name: "Search scope", exact: true }).selectOption(sites[1])
   await page.getByRole("combobox", { name: "Maximum results", exact: true }).selectOption("50")
   await search(page)
   await expect(page.getByText("1 match returned", { exact: true })).toBeVisible()
-  expect(calls).toEqual([{ query: "plate alert", site: sites[1], top_k: 50, mode: "auto" }])
+  expect(calls).toEqual([{ query: "plate alert", site: sites[1], top_k: 50, mode: "auto", assist: true }])
   await expect(resultList(page)).toContainText(sites[1])
   await expect(resultList(page)).not.toContainText(sites[0])
 })
 
 test("supports short keywords, rejects punctuation-only input and supports Ctrl+Enter", async ({ page }) => {
-  await page.goto("/match")
+  await openMatch(page)
   await searchBox(page).fill("???")
   await expect(page.getByRole("button", { name: "Search", exact: true })).toBeDisabled()
   await searchBox(page).fill("HPLC")
@@ -81,7 +81,7 @@ test("supports short keywords, rejects punctuation-only input and supports Ctrl+
 })
 
 test("shows an empty state and recovers from a search service error", async ({ page }) => {
-  await page.goto("/match")
+  await openMatch(page)
   await search(page, "nothing relevant")
   await expect(page.getByText(/No historical deviations matched/)).toBeVisible()
   let attempts = 0
@@ -100,7 +100,7 @@ test("detail failures remain contained and retry without repeating a search", as
   await page.route("**/api/v1/match/matched-records/*?*", route => ++attempts === 1
     ? route.fulfill({ status: 503, json: { detail: "Source lookup failed." } })
     : route.fulfill({ json: details[0] }))
-  await page.goto("/match")
+  await openMatch(page)
   await search(page)
   await resultList(page).locator('button[aria-pressed="false"]').first().click()
   await expect(detailPanel(page).getByRole("alert")).toContainText("Source lookup failed.")
@@ -111,7 +111,7 @@ test("detail failures remain contained and retry without repeating a search", as
 
 test("index metadata failure does not block an all-allowed-sites search", async ({ page }) => {
   await page.route("**/api/v1/match/index", route => route.fulfill({ status: 503, json: { detail: "unavailable" } }))
-  await page.goto("/match")
+  await openMatch(page)
   await expect(page.getByText("Index details unavailable")).toBeVisible()
   await search(page)
   await expect(page.getByText("2 matches returned")).toBeVisible()
@@ -119,13 +119,13 @@ test("index metadata failure does not block an all-allowed-sites search", async 
 
 test("mock embeddings are labelled as unsuitable for real search", async ({ page }) => {
   await page.route("**/api/v1/match/index", route => route.fulfill({ json: { ...index, mock_embeddings: true } }))
-  await page.goto("/match")
+  await openMatch(page)
   await expect(page.getByRole("status")).toContainText("unsuitable for real search")
 })
 
 test("another record or source version cannot populate the selected detail", async ({ page }) => {
   await page.route("**/api/v1/match/matched-records/*?*", route => route.fulfill({ json: { ...details[0], source_snapshot_id: "b".repeat(64) } }))
-  await page.goto("/match")
+  await openMatch(page)
   await search(page)
   await resultList(page).locator('button[aria-pressed="false"]').first().click()
   await expect(detailPanel(page).getByRole("alert")).toContainText("different record, site or source version")
@@ -140,7 +140,7 @@ test("switching candidates cannot show stale source or CAPA details", async ({ p
       await route.fulfill({ json: details[0] }).catch(() => {})
     } else await route.fulfill({ json: details[1] })
   })
-  await page.goto("/match")
+  await openMatch(page)
   await search(page)
   await resultList(page).locator('button[aria-pressed="false"]').first().click()
   await expect.poll(() => Boolean(release)).toBe(true)
@@ -152,7 +152,7 @@ test("switching candidates cannot show stale source or CAPA details", async ({ p
 })
 
 test("results retain their submitted scope when the search form changes", async ({ page }) => {
-  await page.goto("/match")
+  await openMatch(page)
   await search(page)
   await searchBox(page).fill("a different description")
   await page.getByRole("combobox", { name: "Search scope", exact: true }).selectOption(sites[0])
@@ -162,7 +162,7 @@ test("results retain their submitted scope when the search form changes", async 
 
 test("long source text stays readable and layouts do not overflow", async ({ page }) => {
   await page.route("**/api/v1/match/matched-records/*?*", route => route.fulfill({ json: { ...details[0], indexed_field_texts: { DETAILED_DESCRIPTION: "Fictional long retained source text. ".repeat(500) } } }))
-  await page.goto("/match")
+  await openMatch(page)
   await search(page)
   await resultList(page).locator('button[aria-pressed="false"]').first().click()
   const source = page.getByRole("region", { name: "Selected source narrative", exact: true })
@@ -194,3 +194,8 @@ test("leaving MAP for MATCH respects unsaved reviewer notes", async ({ page }) =
   await expect(page).toHaveURL(/\/match$/)
   await expect(page.getByRole("heading", { level: 1 })).toContainText("MATCH")
 })
+
+async function openMatch(page: Page) {
+  await page.goto("/match")
+  await page.getByRole("button", {name:"Filters", exact:true}).click()
+}

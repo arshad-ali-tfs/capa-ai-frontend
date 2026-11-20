@@ -9,7 +9,7 @@ export const canonicalFilters = (filters: MatchFilters): MatchFilters => ({
   departments: [...new Set(filters.departments.map(value => value.trim()))].sort(),
 })
 export const filterKey = (filters: MatchFilters) => JSON.stringify(canonicalFilters(filters))
-export const inputKey = (input: SearchInput) => JSON.stringify({ ...input, query: input.query.trim(), filters: canonicalFilters(input.filters), offset: 0 })
+export const inputKey = (input: SearchInput) => JSON.stringify({ query: input.query.trim(), site: input.site, topK: input.topK, mode: input.mode, filters: canonicalFilters(input.filters), offset: 0 })
 export const hasFilters = (filters: MatchFilters) => filterKey(filters) !== filterKey(emptyFilters())
 export const validQuery = (query: string) => !query.trim() || query.trim().length <= 30000 && (/\d/.test(query) || (query.match(/[a-z]/gi)?.length ?? 0) >= 2)
 export const dateError = (filters: MatchFilters) => filters.date_from && filters.date_to && filters.date_from > filters.date_to ? "Opened from must be on or before opened to." : ""

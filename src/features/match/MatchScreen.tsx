@@ -6,7 +6,9 @@ import { SearchFeedback } from "./components/SearchFeedback"
 import { SearchPanel } from "./components/SearchPanel"
 import { useMatchSearch } from "./hooks/useMatchSearch"
 import { useMatchFilters } from "./hooks/useMatchFilters"
-import { dateError, emptyFilters, inputKey } from "./searchModel"
+import { useMatchOverview } from "./hooks/useMatchOverview"
+import { EvidenceOverview } from "./components/EvidenceOverview"
+import { dateError, emptyFilters, filterChips, inputKey } from "./searchModel"
 import type { MatchFilters, SearchInput, SearchMode } from "./types"
 
 export function MatchScreen() {
@@ -16,6 +18,7 @@ export function MatchScreen() {
   const [filters, setFilters] = useState<MatchFilters>(emptyFilters)
   const [mode, setMode] = useState<SearchMode>("auto")
   const match = useMatchSearch()
+  const overview = useMatchOverview(match.result)
   const facets = useMatchFilters(site, filters, match.indexInfo?.snapshotId, match.indexState !== "loading")
   const input: SearchInput = { query, site, topK, filters, mode, offset: 0 }
   const dirty = !!match.submitted && inputKey(input) !== inputKey(match.submitted)
@@ -30,8 +33,8 @@ export function MatchScreen() {
   return (
     <>
       <PageHeading
-        title="MATCH · Find related history"
-        subtitle="Find specific records, investigate recurring equipment issues and compare related historical deviations."
+        title="MATCH · Search deviation history"
+        subtitle="Describe the issue to find related cases, historical findings and CAPA evidence."
         status={indexStatus}
       />
       <SearchPanel
@@ -67,6 +70,14 @@ export function MatchScreen() {
         result={match.result}
       />
       {dirty && match.result && <p role="status" className="rounded-lg border border-suite-line bg-suite-info-wash p-3 text-xs text-suite-blue">Filters or search text changed. Apply the search to update the results below; they still reflect the submitted criteria.</p>}
+      {(match.searchState === "success" || match.searchState === "empty") && match.result && <>
+        {match.result.interpretation && <div aria-label="Search interpretation" className="rounded-lg border border-suite-line bg-suite-info-wash p-3 text-xs leading-5 text-suite-blue">
+          <strong>{match.result.interpretation.query ? "Searching for:" : "Browsing:"}</strong> {match.result.interpretation.query || "Historical records matching your requested criteria"}
+          <p className="mt-1 text-[11px] text-suite-muted">{match.result.interpretation.query ? "Your original wording is searched too. " : "Records are shown by opened date, newest first. "}Applied scope and filters are shown with the results.{match.result.interpretation.origin === "local" ? " AI query interpretation is unavailable; local search assistance was used." : ""}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5"><span className="rounded-full bg-white px-2 py-1 text-[11px]">Scope: {match.result.scope}</span>{match.result.filters && filterChips(match.result.filters).map(chip=><span key={`${chip.key}:${chip.value}`} className="rounded-full bg-white px-2 py-1 text-[11px]">{chip.label}</span>)}</div>
+        </div>}
+        <EvidenceOverview result={match.result} value={overview.value} state={overview.state} onRetry={overview.retry} onSelect={row=>void match.select(row)} />
+      </>}
       {match.searchState === "success" && match.result && (
         <section className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)]">
           <ResultsList
