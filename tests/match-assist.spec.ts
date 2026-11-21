@@ -65,12 +65,11 @@ test("slow overview never blocks browsing or opening source records",async({page
   release!();await expect(summary(page)).toContainText("Fictional historical records")
 })
 
-test("overview failures stay contained and can be retried",async({page})=>{
+test("temporary overview failures recover internally without a retry click",async({page})=>{
   let calls=0
   await page.route("**/api/v1/match/overview",r=>++calls===1?r.fulfill({status:503,json:{detail:"test failure"}}):r.fulfill({json:overview()}))
   await page.goto("/match");await search(page)
   await expect(results(page)).toBeVisible()
-  await summary(page).getByRole("button",{name:"Retry overview",exact:true}).click()
   await expect(summary(page)).toContainText("Fictional historical records")
   expect(calls).toBe(2)
 })
