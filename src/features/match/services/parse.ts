@@ -159,7 +159,12 @@ export function parseEvidenceOverview(value: unknown, expected: SearchResult): E
     if(!Array.isArray(group)) throw new Error(UNEXPECTED)
     return group.map(item=>{const proof=passage(item);if(!proof.record_id||!reviewedIds.includes(proof.record_id))throw new Error(UNEXPECTED);return proof})
   }) : (()=>{throw new Error(UNEXPECTED)})()
-  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length, citations,reviewedStatusCounts:parseStatusCounts(value.reviewed_status_counts),...parseAnswerMetadata(value,reviewedIds)}
+  const metadata=parseAnswerMetadata(value,reviewedIds)
+  if(metadata.verificationStatus==="verified"&&metadata.answerStatus==="answered"){
+    const cited=[...new Set(metadata.citations?.[0]?.map(proof=>proof.record_id)??[])].sort()
+    if(JSON.stringify(cited)!==JSON.stringify([...lines[0].references].sort()))throw new Error("The direct answer does not match its verified source quotes.")
+  }
+  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length,reviewedStatusCounts:parseStatusCounts(value.reviewed_status_counts),...metadata}
 }
 
 const kinds: MatchKind[] = ["browse", "record_id", "identifier", "keyword", "exact", "hybrid", "semantic"]
