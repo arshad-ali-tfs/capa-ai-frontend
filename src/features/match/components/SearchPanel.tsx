@@ -2,6 +2,8 @@ import { useId, useState, type KeyboardEvent } from "react"
 import { HelpTooltip, Panel } from "@/shared/components"
 import type { FilterOptions, MatchFilters, SearchMode } from "../types"
 import { capaLabels, dateError, emptyFilters, filterChips, validQuery } from "../searchModel"
+import { ScopeControls } from "./ScopeControls"
+import { scopeLabels } from "../scopeModel"
 import { MultiFilter } from "./MultiFilter"
 
 export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onSiteChange, sites, topK, onTopKChange,
@@ -22,7 +24,9 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
   const update = <K extends keyof MatchFilters>(key: K, value: MatchFilters[K]) => onFiltersChange({ ...filters, [key]: value })
   const chips = filterChips(filters)
   const remove = (key: keyof MatchFilters, value: string | number) => {
-    if (key === "capa") update("capa", "any")
+    if (key === "record_scope") onFiltersChange({ ...filters, record_scope: "completed", include_cancelled: false, statuses: [], ...("status" in filters ? {status: "any" as const} : {}) })
+    else if (key === "include_cancelled") update("include_cancelled", false)
+    else if (key === "capa") update("capa", "any")
     else if (key === "status") update("status", "any")
     else if (key === "date_from" || key === "date_to") update(key, null)
     else { const values=filters[key]; if(Array.isArray(values)) onFiltersChange({ ...filters, [key]: values.filter(item => item !== value) }) }
@@ -44,9 +48,10 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
     </div>
     <p id={`${id}-help`} className="mt-3 text-xs leading-5 text-suite-muted">Search naturally, use an exact identifier, or leave empty to browse. <HelpTooltip label="Smart search behaviour">Smart search clarifies pharmaceutical wording and searches your original query too. Explicit equipment/document identifiers are preserved as hard requirements. Year, site and criticality requested in a sentence may be interpreted as filters; applied criteria are shown with the results. Selected filters take precedence. Use the search mode inside Filters for all-keyword, exact phrase or broader Meaning searches. Numeric-only Smart input means a deviation ID.</HelpTooltip></p>
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-suite-muted"><span>Try:</span>{["HPLC system suitability failures", "wrong material added", '"line clearance"'].map(example => <button key={example} type="button" onClick={() => onQueryChange(example)} className="min-h-8 rounded-full border border-suite-line px-3 font-bold text-suite-blue hover:bg-suite-hover">{example}</button>)}</div>
+    <ScopeControls filters={filters} onChange={onFiltersChange} counts={optionsLoading?undefined:options?.statusCounts} onOpenDivisions={()=>{setFiltersOpen(true);requestAnimationFrame(()=>document.getElementById(`${id}-division-control`)?.scrollIntoView({block:"nearest",behavior:"smooth"}))}}/>
     <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-suite-info-wash px-3 py-2 text-xs text-suite-blue" aria-label="Filter scope">
       <span aria-live="polite">{error ? "Check the opened date range" : optionsLoading ? "Updating filter counts…" : optionsError ? "Filter counts unavailable" : options ? <><strong className="tabular-nums">{options.eligibleCount.toLocaleString()}</strong> {options.eligibleCount === 1 ? "deviation" : "deviations"} within filters <span className="text-suite-muted">of {options.scopeCount.toLocaleString()} in site scope</span></> : "Choose filters below"}</span>
-      <span className="flex items-center gap-1">Historical closed deviations<HelpTooltip label="MATCH search coverage">Searches the deviations retained in this index and allowed site scope. The index contains historical Closed - Done records; it does not represent every record in the source system. Year and date filters use the source opened date.</HelpTooltip></span>
+      <span className="flex items-center gap-1">{scopeLabels[filters.record_scope??"completed"]}<HelpTooltip label="MATCH search coverage">Searches indexed deviations within the allowed sites and selected division/status scope. Completed is the default. Cancelled records are optional; ongoing findings may change. Counts describe the current source snapshot, not a live QMS connection. Year and date filters use the source opened date.</HelpTooltip></span>
     </div>
     {(chips.length > 0 || site) && <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Active filters">
       {site && <button type="button" aria-label={`Remove Site: ${site}`} onClick={() => onSiteChange("")} className="min-h-8 max-w-full rounded-full bg-suite-info-wash px-3 py-1 text-xs text-suite-blue [overflow-wrap:anywhere]">Site: {site} ×</button>}
@@ -56,22 +61,24 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
     {optionsError && <p className="mt-3 text-xs text-suite-muted">{optionsError} <button type="button" onClick={onRetryOptions} className="min-h-8 font-bold text-suite-blue underline">Retry filter counts</button></p>}
     {error && <p className="mt-3 text-xs font-bold text-brand" role="alert">{error}</p>}
     <div id={`${id}-filters`} hidden={!filtersOpen} className="mt-4 border-t border-suite-line-soft pt-4">
-    <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <div className="min-w-0"><div className="mb-1 flex items-center gap-1 text-xs font-bold text-suite-slate"><label htmlFor={`${id}-site`}>Site</label><HelpTooltip label="Site filter">Choose one indexed site or all sites allowed by the service. Every filter and search respects this scope.</HelpTooltip></div>
         <select id={`${id}-site`} aria-label="Search scope" value={site} onChange={event => onSiteChange(event.target.value)} className="min-h-11 w-full min-w-0 rounded-lg border border-suite-line-field bg-white px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand">
           <option value="">All allowed sites</option>{sites.map(item => <option key={item.site} value={item.site}>{item.site} · {item.count.toLocaleString()}</option>)}
         </select>
       </div>
+      <div id={`${id}-division-control`}><MultiFilter label="Division" options={options?.facets.divisions ?? []} selected={filters.divisions??[]} onChange={values=>update("divisions",values as string[])} help="Choose DPD, DSD, CTD or Global. Select multiple divisions to include any of them; leave empty for every permitted division. Division is applied before matching."/></div>
       <MultiFilter label="Opened years" options={options?.facets.years ?? []} selected={filters.years} onChange={values => update("years", values as number[])} help="Select one or more years of the source opened date. Choices within this field are combined with OR; different filters must all match." />
       <MultiFilter label="Criticality" options={options?.facets.criticalities ?? []} selected={filters.criticalities} onChange={values => update("criticalities", values as string[])} help="Select source classifications such as Minor, Major and Critical. Search does not infer a new severity." />
       <MultiFilter label="DR types" options={options?.facets.dr_types ?? []} selected={filters.dr_types} onChange={values => update("dr_types", values as string[])} help="Deviation record types retained in this index. Select multiple types to include any of them." />
     </div>
     <details className="mt-3 rounded-lg border border-suite-line-soft bg-suite-hover">
-      <summary className="cursor-pointer px-3 py-2.5 text-xs font-bold text-suite-blue outline-none focus-visible:ring-2 focus-visible:ring-brand">More filters · department, dates and CAPA</summary>
+      <summary className="cursor-pointer px-3 py-2.5 text-xs font-bold text-suite-blue outline-none focus-visible:ring-2 focus-visible:ring-brand">More filters · source status, department, dates and CAPA</summary>
       <div className="grid min-w-0 grid-cols-1 gap-3 border-t border-suite-line-soft p-3 sm:grid-cols-2 xl:grid-cols-4">
         <MultiFilter label="Include sites" options={sites.map(item=>({value:item.site,count:item.count}))} selected={filters.sites ?? []} onChange={values=>{onSiteChange("");update("sites",values as string[])}} help="Include any of these allowed sites. All other filters must also match." />
         <MultiFilter label="Exclude sites" options={sites.map(item=>({value:item.site,count:item.count}))} selected={filters.exclude_sites ?? []} onChange={values=>update("exclude_sites",values as string[])} help="Exclude these sites before retrieval. A site cannot be both included and excluded." />
-        <label className="flex flex-col gap-1 text-xs font-bold">Deviation status<select value={filters.status ?? "any"} onChange={event=>update("status",event.target.value as MatchFilters["status"])} className="min-h-11 rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal"><option value="any">Any indexed status</option><option value="closed">Closed deviations</option><option value="open">Open deviations · may be unavailable</option></select></label>
+        <div className="min-w-0 sm:col-span-2"><label className="flex min-h-10 items-center gap-2 text-xs font-bold text-suite-slate"><input type="checkbox" checked={filters.include_cancelled??false} onChange={event=>onFiltersChange({...filters,include_cancelled:event.target.checked,record_scope:event.target.checked?"all":filters.record_scope,statuses:[]})} className="size-4 accent-brand"/>Include cancelled deviations</label><p className="text-[11px] leading-5 text-suite-muted">Excluded by default. Cancelled records provide context and do not establish a completed investigation.</p></div>
+        <MultiFilter label="Source status" options={options?.facets.statuses??[]} selected={filters.statuses??[]} onChange={values=>update("statuses",values as string[])} help="Optional exact workflow labels from the source, within the selected investigation scope. Enable Include cancelled to search cancelled statuses."/>
         <div className="min-w-0 sm:col-span-2"><MultiFilter label="Departments" options={options?.facets.departments ?? []} selected={filters.departments} onChange={values => update("departments", values as string[])} help="Source responsible departments. Find an option by typing inside the dropdown. Counts reflect other active filters." /></div>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-bold text-suite-slate">Opened from<input type="date" value={filters.date_from ?? ""} max={filters.date_to ?? undefined} onChange={event => update("date_from", event.target.value || null)} className="min-h-11 w-full min-w-0 rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand" /></label>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-bold text-suite-slate">Opened to<input type="date" value={filters.date_to ?? ""} min={filters.date_from ?? undefined} onChange={event => update("date_to", event.target.value || null)} className="min-h-11 w-full min-w-0 rounded-lg border border-suite-line-field bg-white px-2 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand" /></label>

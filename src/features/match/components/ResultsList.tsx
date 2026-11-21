@@ -97,7 +97,7 @@ export function ResultsList({
                     <span className="mt-1 block text-[11px] text-suite-muted">
                       {siteLine(row)}
                     </span>
-                    {(row.drType || row.department) && <span className="mt-1 block text-[11px] text-suite-muted [overflow-wrap:anywhere]">{[row.drType, row.department, row.capaCount ? `${row.capaCount} linked CAPA${row.capaCount === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")}</span>}
+                    {(row.division || row.drType || row.department) && <span className="mt-1 block text-[11px] text-suite-muted [overflow-wrap:anywhere]">{[row.drType, row.department, row.capaCount ? `${row.capaCount} linked CAPA${row.capaCount === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")}</span>}
                     <span className="mt-2 block text-xs leading-relaxed [overflow-wrap:anywhere]">
                       <HighlightedText text={row.excerpt} spans={row.spans} />
                     </span>

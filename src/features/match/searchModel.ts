@@ -1,7 +1,9 @@
+import { scopeFilters, scopeChips } from "./scopeModel"
 import type { MatchFilters, MatchKind, SearchInput } from "./types"
 
-export const emptyFilters = (): MatchFilters => ({ years: [], criticalities: [],exclude_criticalities:[],exclude_years:[], dr_types: [], departments: [], sites: [], exclude_sites: [], status: "any", date_from: null, date_to: null, capa: "any" })
+export const emptyFilters = (): MatchFilters => ({ divisions: [], statuses: [], record_scope: "completed", include_cancelled: false, years: [], criticalities: [],exclude_criticalities:[],exclude_years:[], dr_types: [], departments: [], sites: [], exclude_sites: [], status: "any", date_from: null, date_to: null, capa: "any" })
 export const canonicalFilters = (filters: MatchFilters): MatchFilters => ({
+  ...scopeFilters(filters),
   years: [...new Set(filters.years)].sort((a, b) => a - b),
   criticalities: [...new Set(filters.criticalities.map(value => value.trim()))].sort(),
   exclude_criticalities:[...new Set((filters.exclude_criticalities??[]).map(value=>value.trim()))].sort(),
@@ -36,6 +38,7 @@ export const modeLabel: Record<MatchKind, string> = {
 export const capaLabels = { any: "Any CAPA link status", linked: "Has a linked CAPA", completed: "Has a completed linked CAPA", none: "No CAPA link in index" }
 export function filterChips(filters: MatchFilters): { key: keyof MatchFilters; value: string | number; label: string }[] {
   return [
+    ...scopeChips(filters),
     ...filters.years.map(value => ({ key: "years" as const, value, label: `Year: ${value}` })),
     ...filters.criticalities.map(value => ({ key: "criticalities" as const, value, label: `Criticality: ${value}` })),
     ...(filters.exclude_criticalities??[]).map(value=>({key:"exclude_criticalities" as const,value,label:`Exclude criticality: ${value}`})),
