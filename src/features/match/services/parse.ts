@@ -1,3 +1,4 @@
+import { parseScopeFilters, parseStatusCounts } from "../scopeModel"
 import { parseAnswerMetadata } from "../summaryEvidence"
 import type { CapaRow, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchKind, MatchRow, RecordDetail, SearchResult, SourcePassage } from "../types"
 
@@ -58,6 +59,7 @@ function parseRow(value: unknown, snapshotId: string): MatchRow {
   const reasons = value.match_reasons === undefined ? [] : stringList(value.match_reasons)
   if (value.candidate_relationship !== undefined && !["direct", "related"].includes(value.candidate_relationship as string)) throw new Error(UNEXPECTED)
   return {
+    division: text(value.division),
     deviationId: requiredText(value.pr_id),
     temporalVerification: text(value.temporal_verification),
     supportingPassage: value.supporting_passage ? passage(value.supporting_passage) : null,
@@ -157,7 +159,7 @@ export function parseEvidenceOverview(value: unknown, expected: SearchResult): E
     if(!Array.isArray(group)) throw new Error(UNEXPECTED)
     return group.map(item=>{const proof=passage(item);if(!proof.record_id||!reviewedIds.includes(proof.record_id))throw new Error(UNEXPECTED);return proof})
   }) : (()=>{throw new Error(UNEXPECTED)})()
-  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length, citations,...parseAnswerMetadata(value,reviewedIds)}
+  return {searchId: value.search_id as string, snapshotId: value.source_snapshot_id as string, lines, reviewedIds, returnedCount: expected.rows.length, citations,reviewedStatusCounts:parseStatusCounts(value.reviewed_status_counts),...parseAnswerMetadata(value,reviewedIds)}
 }
 
 const kinds: MatchKind[] = ["browse", "record_id", "identifier", "keyword", "exact", "hybrid", "semantic"]
@@ -177,7 +179,7 @@ export function parseFilters(value: unknown): MatchFilters {
   if (!isRecord(value) || !Array.isArray(value.years) || value.years.some(year => typeof year !== "number" || !Number.isInteger(year) || year < 1900 || year > 2200) ||
     !["any", "linked", "completed", "none"].includes(value.capa as string)) throw new Error(UNEXPECTED)
   for (const key of ["date_from", "date_to"]) if (value[key] !== null && (typeof value[key] !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value[key] as string))) throw new Error(UNEXPECTED)
-  return { years: value.years as number[], criticalities: stringList(value.criticalities), dr_types: stringList(value.dr_types),
+  return { ...parseScopeFilters(value), years: value.years as number[], criticalities: stringList(value.criticalities), dr_types: stringList(value.dr_types),
     exclude_criticalities:value.exclude_criticalities===undefined?[]:stringList(value.exclude_criticalities),
     exclude_years:value.exclude_years===undefined?[]:Array.isArray(value.exclude_years)&&value.exclude_years.every(year=>Number.isInteger(year)&&Number(year)>=1900&&Number(year)<=2200)?value.exclude_years as number[]:(()=>{throw new Error(UNEXPECTED)})(),
     sites: value.sites === undefined ? [] : stringList(value.sites), exclude_sites: value.exclude_sites === undefined ? [] : stringList(value.exclude_sites),
@@ -187,19 +189,19 @@ export function parseFilters(value: unknown): MatchFilters {
 export function parseFilterOptions(value: unknown): FilterOptions {
   if (!isRecord(value) || !isRecord(value.facets) || typeof value.all_sites !== "boolean") throw new Error(UNEXPECTED)
   const facets = {} as FilterOptions["facets"]
-  for (const key of ["years", "criticalities", "dr_types", "departments"] as const) {
-    const options = value.facets[key]
+  for (const key of ["divisions", "statuses", "years", "criticalities", "dr_types", "departments"] as const) {
+    const options = value.facets[key] ?? (["divisions","statuses"].includes(key) ? [] : undefined)
     if (!Array.isArray(options)) throw new Error(UNEXPECTED)
     facets[key] = options.map(option => {
       if (!isRecord(option) || (key === "years" ? typeof option.value !== "number" || !Number.isInteger(option.value) : typeof option.value !== "string" || !option.value.trim())) throw new Error(UNEXPECTED)
       return { value: option.value as string | number, count: count(option.count) }
     })
-    if (new Set(facets[key].map(option => option.value)).size !== facets[key].length) throw new Error(UNEXPECTED)
+    if (new Set(facets[key]!.map(option => option.value)).size !== facets[key]!.length) throw new Error(UNEXPECTED)
   }
   const scopeCount = count(value.scope_record_count), eligibleCount = count(value.eligible_record_count)
   if (eligibleCount > scopeCount) throw new Error(UNEXPECTED)
   return { scope: value.all_sites ? "All allowed sites" : requiredText(value.site), snapshotId: requiredText(value.source_snapshot_id),
-    scopeCount, eligibleCount, missingDates: count(value.missing_opened_dates), filters: parseFilters(value.filters), facets }
+    scopeCount, eligibleCount, statusCounts: parseStatusCounts(value.status_counts), missingDates: count(value.missing_opened_dates), filters: parseFilters(value.filters), facets }
 }
 
 export function parseRecordDetail(value: unknown, expected: MatchRow): RecordDetail {

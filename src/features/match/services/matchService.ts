@@ -1,3 +1,4 @@
+import {rowMatchesScope} from "../scopeModel"
 import { matchApi } from "@/shared/api/clients"
 import type { EvidenceDecision, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchRow, RecordDetail, SavedCase, SearchInput, SearchResult } from "../types"
 import { parseEvidenceOverview, parseFilterOptions, parseIndexInfo, parseRecordDetail, parseSearchResponse } from "./parse"
@@ -47,12 +48,13 @@ export const matchService = {
     const submitted = result.submittedCriteria
     const effective = result.filters
     const changedSelectedFilters = effective && Object.entries(canonicalFilters(input.filters)).some(([key, value]) => {
-      const selected = Array.isArray(value) ? value.length > 0 : value !== null && value !== "any"
+      const implicitCompleted = key === "record_scope" && value === "completed" && !hasFilters(input.filters)
+      const selected = !implicitCompleted && (Array.isArray(value) ? value.length > 0 : value !== null && value !== "any")
       return selected && JSON.stringify(value) !== JSON.stringify(canonicalFilters(effective)[key as keyof MatchFilters])
     })
     const wrongCriteria = submitted ? inputKey(submitted) !== inputKey(input) || submitted.offset !== offset :
       result.scope !== (site || "All allowed sites") || (result.filters ? filterKey(result.filters) !== filterKey(input.filters) : hasFilters(input.filters))
-    if (result.query !== query || wrongCriteria || changedSelectedFilters || site && result.scope !== site || result.rows.length > topK || result.offset !== offset || result.requestedMode !== mode)
+    if (result.query !== query || wrongCriteria || changedSelectedFilters || result.filters && result.rows.some(row=>!rowMatchesScope(row,result.filters!)) || site && result.scope !== site || result.rows.length > topK || result.offset !== offset || result.requestedMode !== mode)
       throw new Error("MATCH returned results for a different query or scope. Please retry.")
     return result
   },

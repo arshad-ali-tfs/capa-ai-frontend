@@ -77,7 +77,7 @@ test("year and criticality multi-selects, active chips and clear filters remain 
 test("date boundaries are validated and CAPA filters are sent as explicit criteria",async({page})=>{
   const calls:any[]=[]; await mocks(page,calls)
   await openMatch(page)
-  await page.getByText("More filters · department, dates and CAPA",{exact:true}).click()
+  await page.getByText(/^More filters/).click()
   await page.getByLabel("Opened from",{exact:true}).fill("2026-09-01")
   await page.getByLabel("Opened to",{exact:true}).fill("2025-01-01")
   await expect(page.getByRole("alert")).toContainText("on or before")
@@ -120,7 +120,7 @@ test("filter popovers support keyboard dismissal and 320px layouts retain all co
   await page.keyboard.press("Escape")
   await expect(year).toBeFocused()
   await expect(year).toHaveAttribute("aria-expanded","false")
-  await page.getByText("More filters · department, dates and CAPA",{exact:true}).click()
+  await page.getByText(/^More filters/).click()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
   await box(page).fill("EQ-104")
   await page.getByRole("button",{name:"Search",exact:true}).click()

@@ -1,6 +1,8 @@
 import {useEffect,useState} from "react"
 import {Badge,HelpTooltip} from "@/shared/components"
-import type {MatchRow,RecordDetail} from "../types"
+import {StatusCountsView} from "./ScopeControls"
+import {scopeFilters,scopeLabels,watchScopeKey} from "../scopeModel"
+import type {MatchFilters,MatchRow,RecordDetail} from "../types"
 import {loadWatchlist,type Watchlist,type WatchEvidence,type WatchSignal} from "../watchlist"
 import {matchService} from "../services/matchService"
 import {fieldLabel} from "../services/parse"
@@ -19,7 +21,7 @@ function RelatedEvidence({reference,selected}:{reference:WatchEvidence;selected:
   },[request,selected.deviationId,selected.snapshotId,reference.pr_id,reference.site])
   return <details className="rounded-lg border border-suite-line bg-white p-3">
     <summary className="cursor-pointer list-none text-xs leading-5"><span className="font-bold text-suite-blue">Deviation {reference.pr_id}</span><span className="ml-2 text-[11px] text-suite-muted">{dateLabel(reference.date_opened)}</span><span className="mt-1 block font-bold [overflow-wrap:anywhere]">{reference.record_name||"Untitled deviation"}</span><span className="mt-1 block text-[11px] text-suite-muted">View matching evidence ↓</span></summary>
-    <div className="mt-3 flex flex-wrap items-center gap-2"><Badge tone={criticalityTone(reference.criticality)}>{reference.criticality||"Criticality unavailable"}</Badge><span className="text-[11px] text-suite-muted">{reference.status}</span></div>
+    <div className="mt-3 flex flex-wrap items-center gap-2"><Badge tone={criticalityTone(reference.criticality)}>{reference.criticality||"Criticality unavailable"}</Badge><span className="text-[11px] text-suite-muted">{reference.status}</span>{reference.division&&<span className="text-[11px] text-suite-blue">Division: {reference.division}</span>}</div>
     <p className="mt-3 text-[11px] font-bold text-suite-slate">{fieldLabel(reference.field)} · retained excerpt</p>
     <blockquote className="mt-1 border-l-2 border-suite-line pl-3 text-xs leading-5 whitespace-pre-wrap [overflow-wrap:anywhere]">{reference.quote}</blockquote>
     {!detail&&<button type="button" disabled={loading} className="map-secondary mt-3 text-xs!" onClick={()=>setRequest(value=>value+1)}>{loading?"Loading retained source…":error?`Retry source for ${reference.pr_id}`:`Read retained source for ${reference.pr_id}`}</button>}
@@ -34,6 +36,7 @@ function Signal({signal,selected}:{signal:WatchSignal;selected:MatchRow}) {
     <p className="text-[10px] font-bold tracking-wide text-suite-muted uppercase">{signal.kind==="equipment"?"Equipment ID":signal.kind==="location"?"Location":"Recorded event indicators"}</p>
     <h4 className="mt-1 text-sm font-bold [overflow-wrap:anywhere]">{signal.label}</h4>
     <div className="mt-3 flex flex-wrap items-baseline gap-2"><strong className="text-2xl tabular-nums">{count(signal.other_record_count)}</strong>{" "}<span className="text-xs text-suite-slate">{signal.kind==="pattern"?"other records with matching indicators":"other records mention this "+(signal.kind==="equipment"?"equipment ID":"location")}</span></div>
+    <div className="mt-2"><StatusCountsView counts={signal.status_counts} label="Matching workflow statuses"/></div>
     <div className="mt-2 grid grid-cols-2 gap-3 text-[11px] leading-5 text-suite-muted"><p><strong className="block text-xs tabular-nums text-suite-ink">{count(signal.last_12_months)}</strong>in the past 12 months</p><p><strong className="block text-xs text-suite-ink">{dateLabel(signal.last_opened)}</strong>latest other record</p></div>
     {signal.kind==="equipment"&&signal.failure_indicator_count>0&&<p className="mt-2 rounded bg-suite-info-wash p-2 text-[11px] leading-5 text-suite-blue">{count(signal.failure_indicator_count)} {signal.failure_indicator_count===1?"record has":"records have"} nearby failure wording and matching event indicators. Review the evidence to confirm involvement.</p>}
     <button type="button" aria-expanded={seedOpen} onClick={()=>setSeedOpen(value=>!value)} className="mt-3 min-h-8 text-xs font-bold text-suite-blue underline">Why this signal appears</button>
@@ -43,20 +46,24 @@ function Signal({signal,selected}:{signal:WatchSignal;selected:MatchRow}) {
   </section>
 }
 
-export function WatchlistPanel({selected}:{selected:MatchRow}) {
+export function WatchlistPanel({selected,filters}:{selected:MatchRow;filters?:MatchFilters}) {
   const [value,setValue]=useState<Watchlist|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0)
+  const scopeKey=watchScopeKey(filters)
   useEffect(()=>{
     const controller=new AbortController();setValue(null);setError("")
-    loadWatchlist(selected,controller.signal).then(data=>{if(!controller.signal.aborted)setValue(data)}).catch(reason=>{if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Watchlist could not be loaded.")})
+    loadWatchlist(selected,controller.signal,filters).then(data=>{if(!controller.signal.aborted)setValue(data)}).catch(reason=>{if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Watchlist could not be loaded.")})
     return()=>controller.abort()
-  },[selected.deviationId,selected.site,selected.snapshotId,retry])
+  },[selected.deviationId,selected.site,selected.snapshotId,retry,scopeKey])
   return <div className="mt-4 min-w-0">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="flex items-center gap-1 text-sm font-bold">Historical watchlist <HelpTooltip label="Watchlist counts">Counts scan all indexed deviations at the selected site, independent of the submitted search filters. Each other deviation counts once per signal. Literal mentions and matching text indicators need investigation; they do not establish common root cause, ongoing failure or CAPA ineffectiveness. Counts across signals can overlap.</HelpTooltip></h3><button type="button" onClick={()=>setRetry(v=>v+1)} className="min-h-8 text-xs font-bold text-suite-blue underline">Refresh watchlist</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="flex items-center gap-1 text-sm font-bold">Historical watchlist <HelpTooltip label="Watchlist counts">Counts scan indexed deviations at the selected site within the submitted division and investigation-status scope, across all available dates. Year, criticality and other search filters do not restrict this history. Each other deviation counts once per signal. Literal mentions and matching text indicators need investigation; they do not establish common root cause, ongoing failure or CAPA ineffectiveness. Counts across signals can overlap.</HelpTooltip></h3><button type="button" onClick={()=>setRetry(v=>v+1)} className="min-h-8 text-xs font-bold text-suite-blue underline">Refresh watchlist</button></div>
     {!value&&!error&&<p role="status" aria-busy="true" className="mt-3 text-sm leading-6 text-suite-muted">Checking the full indexed history at this site…</p>}
     {error&&<div role="alert" className="mt-3 rounded-lg border border-suite-line p-3"><p className="text-sm font-bold">Watchlist unavailable</p><p className="mt-1 text-xs leading-5 [overflow-wrap:anywhere]">{error}</p><button type="button" className="map-secondary mt-3 text-xs!" onClick={()=>setRetry(v=>v+1)}>Retry watchlist</button></div>}
     {value&&<>
       <p className="mt-2 text-xs font-bold text-suite-blue">{value.site} · {count(value.scope_record_count)} searchable deviations</p>
-      <p className="mt-1 text-[11px] leading-5 text-suite-muted">All available opened dates: {dateLabel(value.opened_from)} – {dateLabel(value.opened_to)}. Uses this site's full indexed history, independent of search filters; the selected deviation is excluded from the counts.</p>
+      <p className="mt-1 text-[11px] leading-5 text-suite-muted">All available opened dates: {dateLabel(value.opened_from)} – {dateLabel(value.opened_to)}. Uses all indexed dates within the submitted division/status scope; the selected deviation is excluded from the counts.</p>
+      <p className="mt-2 text-[11px] text-suite-blue">{scopeLabels[scopeFilters(filters).record_scope]} · Division: {scopeFilters(filters).divisions.join(" + ")||"All"}{scopeFilters(filters).include_cancelled?" · cancelled included":" · cancelled excluded"}</p>
+      <div className="mt-2"><StatusCountsView counts={value.status_counts} label="Watchlist scope statuses"/></div>
+      {value.selected_in_scope===false&&<p className="mt-2 text-xs text-warn-ink">The selected deviation is outside this division/status scope; counts cover the scoped comparison records only.</p>}
       <p className="mt-2 rounded-lg bg-suite-info-wash p-2.5 text-xs leading-5 text-suite-blue">Historical signals for review. A repeated equipment mention does not establish a repeated failure or shared cause.</p>
       <div className="mt-4 space-y-3">{value.signals.map(signal=><Signal key={signal.key} signal={signal} selected={selected}/>)}</div>
       {!value.signals.length&&<p className="mt-3 rounded-lg border border-suite-line p-3 text-sm leading-6">No specific equipment IDs, coded locations or supported event indicators were identified in the retained text. Recurrence could not be assessed from this record.</p>}

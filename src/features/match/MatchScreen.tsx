@@ -146,6 +146,7 @@ export function MatchScreen() {
             onPage={offset => { if (match.submitted) void match.search({ ...match.submitted, offset }) }}
           />
           <CandidateDetail
+            scopeFilters={match.result?.filters??match.submitted?.filters}
             selected={match.selected}
             detailState={match.detailState}
             detailError={match.detailError}
