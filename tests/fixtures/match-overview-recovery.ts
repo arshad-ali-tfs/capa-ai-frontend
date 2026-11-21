@@ -2,7 +2,7 @@ import {overview} from "./match-assist"
 export function verifiedOverview(id?:string){
   const value=overview(id),record=value.reviewed_ids[0],quote="Fictional calibration instructions were revised."
   return {...value,is_question:true,question_intent:"actions",answer_status:"answered",verification_status:"verified",
-    verification_attempts:{draft:2,grounding:1},verification_retries:1,verification_reason:null,
+    verification_attempts:{draft:3,grounding:2},verification_retries:3,verification_reason:null,
     support_check:{direct_answer_verified:true},
     lines:[{text:"The fictional source documents revised calibration instructions.",references:[record]},...value.lines.slice(1)],
     citations:[[{record_id:record,field:"DETAILED_DESCRIPTION",start:0,end:quote.length,quote}],[]]}

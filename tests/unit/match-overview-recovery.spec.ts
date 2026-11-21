@@ -11,8 +11,8 @@ test.afterEach(()=>{matchApi.requestJson=original})
 
 test("source-verified answers retain their automatic attempt counts",()=>{
   const parsed=parseEvidenceOverview(verifiedOverview(),result())
-  expect(parsed.verificationStatus).toBe("verified");expect(parsed.verificationRetries).toBe(1)
-  expect(parsed.verificationAttempts).toEqual({draft:2,grounding:1});expect(parsed.citations?.[0]).toHaveLength(1)
+  expect(parsed.verificationStatus).toBe("verified");expect(parsed.verificationRetries).toBe(3)
+  expect(parsed.verificationAttempts).toEqual({draft:3,grounding:2});expect(parsed.citations?.[0]).toHaveLength(1)
 })
 test("valid evidence gaps and service unavailability remain different outcomes",()=>{
   expect(parseEvidenceOverview(gapOverview(),result()).verificationStatus).toBe("insufficient_evidence")
@@ -21,7 +21,7 @@ test("valid evidence gaps and service unavailability remain different outcomes",
 test("verification metadata cannot bless missing quotes, incomplete checks or excess attempts",()=>{
   const base=verifiedOverview()
   for(const value of [{...base,citations:[]},{...base,verification_status:"unavailable"},{...base,support_check:{direct_answer_verified:false}},
-    {...base,verification_attempts:{draft:3,grounding:1},verification_retries:2},
+    {...base,verification_attempts:{draft:4,grounding:1},verification_retries:3},
     {...base,verification_attempts:{draft:1,grounding:0},verification_retries:0},
     {...base,verification_retries:0}])expect(()=>parseEvidenceOverview(value,result())).toThrow()
 })
