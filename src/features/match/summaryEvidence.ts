@@ -1,5 +1,6 @@
 export interface AnswerPassage {record_id?:string;field:string;start:number;end:number;quote:string}
-export interface AnswerMetadata {isQuestion?:boolean;questionIntent?:string;answerStatus?:"answered"|"not_established"|"overview";citations?:AnswerPassage[][]}
+export type VerificationStatus="verified"|"insufficient_evidence"|"unavailable"
+export interface AnswerMetadata {isQuestion?:boolean;questionIntent?:string;answerStatus?:"answered"|"not_established"|"overview";citations?:AnswerPassage[][];verificationStatus?:VerificationStatus;verificationAttempts?:{draft:number;grounding:number};verificationRetries?:number}
 export function parseAnswerMetadata(value:Record<string,unknown>,ids:string[]):AnswerMetadata {
   const result:AnswerMetadata={}
   const invalid=()=>new Error("The answer evidence could not be verified for this search.")
@@ -16,6 +17,15 @@ export function parseAnswerMetadata(value:Record<string,unknown>,ids:string[]):A
         return {record_id:proof.record_id,field:proof.field,start:proof.start,end:proof.end,quote:proof.quote}
       })
     })
+  }
+  if(value.verification_status!==undefined||value.verification_attempts!==undefined||value.verification_retries!==undefined){
+    const attempts=value.verification_attempts as {draft?:unknown;grounding?:unknown}|undefined
+    if(!["verified","insufficient_evidence","unavailable"].includes(value.verification_status as string)||!attempts||Array.isArray(attempts)||Object.keys(attempts).sort().join(",")!=="draft,grounding"||!Number.isSafeInteger(attempts.draft)||!Number.isSafeInteger(attempts.grounding)||(attempts.draft as number)<1||(attempts.draft as number)>3||(attempts.grounding as number)<0||(attempts.grounding as number)>3||(attempts.draft as number)+(attempts.grounding as number)>5||value.verification_retries!==Math.max(0,(attempts.draft as number)-1)+Math.max(0,(attempts.grounding as number)-1))throw invalid()
+    const proof=result.citations?.some(group=>group.length)
+    if(value.verification_status==="verified"&&(!proof||(attempts.grounding as number)<1)||value.verification_status!=="verified"&&result.answerStatus==="answered"||value.verification_status==="unavailable"&&proof||value.verification_status==="insufficient_evidence"&&(attempts.grounding as number)<1)throw invalid()
+    if(result.answerStatus==="answered"&&(value.support_check as {direct_answer_verified?:unknown}|undefined)?.direct_answer_verified!==true)throw invalid()
+    result.verificationStatus=value.verification_status as VerificationStatus
+    result.verificationAttempts=attempts as {draft:number;grounding:number};result.verificationRetries=value.verification_retries as number
   }
   return result
 }
