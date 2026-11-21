@@ -5,6 +5,10 @@ export type IndexState = "loading" | "success" | "error"
 export type SearchMode = "auto" | "keyword" | "exact" | "semantic"
 export type MatchKind = "browse" | "record_id" | "identifier" | "keyword" | "exact" | "hybrid" | "semantic"
 export interface MatchFilters {
+  divisions?: string[]
+  statuses?: string[]
+  record_scope?: "completed" | "ongoing" | "all"
+  include_cancelled?: boolean
   years: number[]
   criticalities: string[]
   dr_types: string[]
@@ -28,10 +32,12 @@ export interface FilterOptions {
   eligibleCount: number
   missingDates: number
   filters: MatchFilters
-  facets: Record<"years" | "criticalities" | "dr_types" | "departments", { value: string | number; count: number }[]>
+  statusCounts?: import("./scopeModel").StatusCounts
+  facets: Partial<Record<"divisions" | "statuses", { value: string | number; count: number }[]>> & Record<"years" | "criticalities" | "dr_types" | "departments", { value: string | number; count: number }[]>
 }
 
 export interface MatchRow {
+  division?: string
   deviationId: string
   site: string
   openedDate: string
@@ -92,6 +98,7 @@ export interface SearchResult {
 }
 
 export interface EvidenceOverview extends AnswerMetadata {
+  reviewedStatusCounts?: import("./scopeModel").StatusCounts
   searchId: string
   snapshotId: string
   lines: { text: string; references: string[] }[]

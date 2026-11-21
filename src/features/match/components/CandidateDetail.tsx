@@ -1,13 +1,15 @@
+import { RecordStatusNotice } from "./ScopeControls"
 import { SelectedTabs } from "./SelectedTabs"
 import { WatchlistPanel } from "./WatchlistPanel"
 import { useEffect, useRef, useState } from "react"
 import { Badge, EmptyState } from "@/shared/components"
-import type { DetailState, MatchRow, RecordDetail } from "../types"
+import type { DetailState, MatchRow, RecordDetail, MatchFilters } from "../types"
 import { criticalityTone, siteLine, statusTone } from "../utils"
 import { HighlightedText } from "./HighlightedText"
 import { modeLabel } from "../searchModel"
 
-export function CandidateDetail({ selected, detailState, detailError, recordDetail, onRetry }: {
+export function CandidateDetail({ selected, detailState, detailError, recordDetail, onRetry, scopeFilters }: {
+  scopeFilters?: MatchFilters
   selected: MatchRow | undefined
   detailState: DetailState
   detailError: string
@@ -50,6 +52,8 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
               {selected.status && <Badge tone={statusTone(selected.status)}>{selected.status}</Badge>}
             </div>
           </div>
+          <RecordStatusNotice status={selected.status}/>
+          {selected.division&&<p className="mt-2 text-[11px] font-bold text-suite-blue">Division: {selected.division}</p>}
           <SelectedTabs value={activeTab} onChange={changeTab}/>
           <div id="match-details-panel" role="tabpanel" aria-labelledby="match-details-tab" hidden={activeTab!=="details"}>
           <div className="pt-3">
@@ -102,7 +106,7 @@ export function CandidateDetail({ selected, detailState, detailError, recordDeta
           </>}
           </div>
           <div id="match-watchlist-panel" role="tabpanel" aria-labelledby="match-watchlist-tab" hidden={activeTab!=="watchlist"}>
-            {openedWatch===selectionKey&&<WatchlistPanel key={selectionKey} selected={selected}/>}
+            {openedWatch===selectionKey&&<WatchlistPanel key={selectionKey} selected={selected} filters={scopeFilters}/>}
           </div>
         </>}
       </div>
