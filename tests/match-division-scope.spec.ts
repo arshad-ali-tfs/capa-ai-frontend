@@ -51,3 +51,24 @@ test("division and workflow controls fit a narrow viewport",async({page})=>{
   await expect(results(page).getByRole("heading")).toContainText("of 1 deviation")
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
+
+
+test("removing investigation scope clears cancelled and exact status criteria together",async({page})=>{
+  const api=await installScopeAPI(page);await page.goto("/match")
+  await page.getByRole("button",{name:"Filters",exact:true}).click()
+  await page.getByText("More filters · source status, department, dates and CAPA",{exact:true}).click()
+  await page.getByRole("checkbox",{name:"Include cancelled deviations",exact:true}).check()
+  await page.getByRole("button",{name:"Source status filters",exact:true}).click()
+  await page.getByRole("checkbox",{name:"Closed - Cancelled",exact:true}).check()
+  await page.getByRole("button",{name:"Done",exact:true}).click()
+  await page.getByRole("button",{name:"Remove Investigation status: All investigations",exact:true}).click()
+  await expect(page.getByLabel("Investigation status",{exact:true})).toHaveValue("completed")
+  await expect(page.getByRole("checkbox",{name:"Include cancelled deviations",exact:true})).not.toBeChecked()
+  await expect(page.getByRole("button",{name:"Remove Source status: Closed - Cancelled",exact:true})).toHaveCount(0)
+  await browse(page)
+  const submitted={record_scope:"completed",include_cancelled:false,statuses:[],...api.requests.at(-1).filters}
+  expect(submitted.record_scope).toBe("completed")
+  expect(submitted.include_cancelled).toBe(false)
+  expect(submitted.statuses).toEqual([])
+  await expect(results(page)).not.toContainText("DEV-CANCEL-1")
+})

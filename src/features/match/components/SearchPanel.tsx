@@ -24,7 +24,7 @@ export function SearchPanel({ query, onQueryChange, onSearch, loading, site, onS
   const update = <K extends keyof MatchFilters>(key: K, value: MatchFilters[K]) => onFiltersChange({ ...filters, [key]: value })
   const chips = filterChips(filters)
   const remove = (key: keyof MatchFilters, value: string | number) => {
-    if (key === "record_scope") update("record_scope", "completed")
+    if (key === "record_scope") onFiltersChange({ ...filters, record_scope: "completed", include_cancelled: false, statuses: [], ...("status" in filters ? {status: "any" as const} : {}) })
     else if (key === "include_cancelled") update("include_cancelled", false)
     else if (key === "capa") update("capa", "any")
     else if (key === "status") update("status", "any")
