@@ -23,7 +23,7 @@ export function MultiFilter({ label, options, selected, onChange, help }: {
   }, [open])
   const available = [...options, ...selected.filter(value => !options.some(option => option.value === value)).map(value => ({ value, count: 0 }))]
   const visible = available.filter(option => String(option.value).toLowerCase().includes(query.toLowerCase()))
-  const allLabel = label === "Criticality" ? "All classifications" : label === "DR types" ? "All DR types" : `All ${label.toLowerCase()}`
+  const allLabel = label === "Division" ? "All divisions" : label === "Source status" ? "All source statuses" : label === "Criticality" ? "All classifications" : label === "DR types" ? "All DR types" : `All ${label.toLowerCase()}`
   return <div ref={root} className="relative min-w-0">
     <div className="mb-1 flex items-center gap-1 text-xs font-bold text-suite-slate"><span id={`${id}-label`}>{label}</span><HelpTooltip label={`${label} filter`}>{help}</HelpTooltip></div>
     <button ref={button} type="button" aria-label={`${label} filters`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-suite-line-field bg-white px-3 text-left text-sm outline-none hover:border-suite-slate focus-visible:ring-2 focus-visible:ring-brand">
