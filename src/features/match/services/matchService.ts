@@ -1,3 +1,4 @@
+import { ApiError } from "@/shared/api/httpClient"
 import {rowMatchesScope} from "../scopeModel"
 import { matchApi } from "@/shared/api/clients"
 import type { EvidenceDecision, EvidenceOverview, FilterOptions, IndexInfo, MatchFilters, MatchRow, RecordDetail, SavedCase, SearchInput, SearchResult } from "../types"
@@ -59,9 +60,23 @@ export const matchService = {
     return result
   },
   async getOverview(result: SearchResult, signal?: AbortSignal): Promise<EvidenceOverview> {
-    return parseEvidenceOverview(await matchApi.requestJson<unknown>(`${BASE}/overview`, {
-      method: "POST", body: JSON.stringify({ search_id: result.summaryId }), signal,
-    }), result)
+    for (let attempt=0;attempt<2;attempt++) {
+      if(signal?.aborted)throw new DOMException("The overview was cancelled.","AbortError")
+      try {
+        return parseEvidenceOverview(await matchApi.requestJson<unknown>(`${BASE}/overview`, {
+          method: "POST", body: JSON.stringify({ search_id: result.summaryId }), signal,
+        }), result)
+      } catch(error) {
+        if(signal?.aborted||attempt||!(error instanceof ApiError)||![0,408,429,500,502,503,504].includes(error.status))throw error
+        await new Promise<void>((resolve,reject)=>{
+          const abort=()=>{clearTimeout(timer);reject(new DOMException("The overview was cancelled.","AbortError"))}
+          const timer=setTimeout(()=>{signal?.removeEventListener("abort",abort);resolve()},200)
+          signal?.addEventListener("abort",abort,{once:true})
+          if(signal?.aborted)abort()
+        })
+      }
+    }
+    throw new Error("The overview is unavailable.")
   },
   async getFilterOptions(site: string, filters: MatchFilters, signal?: AbortSignal): Promise<FilterOptions> {
     const value = parseFilterOptions(await matchApi.requestJson<unknown>(`${BASE}/facets`, {
